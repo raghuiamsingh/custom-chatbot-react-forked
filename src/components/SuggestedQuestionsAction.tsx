@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SuggestedQuestionsActionProps {
@@ -20,6 +20,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
   const [suggestionSets, setSuggestionSets] = useState<string[][]>([]);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [isLoadingSets, setIsLoadingSets] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Load suggestion sets when component mounts or context changes
   useEffect(() => {
@@ -27,6 +28,23 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
       loadSuggestionSets();
     }
   }, [isExpanded, context]);
+
+  // Handle click outside to close popover
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsExpanded(false);
+      }
+    };
+
+    if (isExpanded) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isExpanded]);
 
   const loadSuggestionSets = async () => {
     setIsLoadingSets(true);
@@ -218,7 +236,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
       };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       {/* Compact Action Chip */}
       <motion.button
         onClick={toggleExpanded}
