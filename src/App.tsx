@@ -230,7 +230,7 @@ function App() {
       {/* Suggested Questions Action - only show after conversation starts */}
       {messages.length > 0 && (
         <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-3 transition-colors duration-300 ease-in-out">
-          <div className="max-w-2xl mx-auto flex justify-center">
+          <div className="flex justify-center">
             <SuggestedQuestionsAction
               onQuestionClick={sendMessage}
               onRefresh={handleRefreshSuggestions}
