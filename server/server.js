@@ -91,6 +91,20 @@ function normalizeBotDojoResponse(botdojoResponse) {
       });
     }
     
+    // Extract suggested questions from BotDojo response
+    let suggestedQuestions = [];
+    if (botdojoResponse.suggestedQuestions && Array.isArray(botdojoResponse.suggestedQuestions)) {
+      suggestedQuestions = botdojoResponse.suggestedQuestions;
+    }
+    
+    // Add suggested questions to the last bot message if any exist
+    if (suggestedQuestions.length > 0 && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'bot') {
+        lastMessage.suggestedQuestions = suggestedQuestions;
+      }
+    }
+    
   } else if (botdojoResponse.response && botdojoResponse.response.text_output) {
     // Fallback: Extract the main text response
     let textContent = botdojoResponse.response.text_output;
@@ -109,6 +123,20 @@ function normalizeBotDojoResponse(botdojoResponse) {
         type: 'text',
         content: { text: textContent }
       });
+    }
+    
+    // Extract suggested questions from BotDojo response (fallback)
+    let suggestedQuestions = [];
+    if (botdojoResponse.suggestedQuestions && Array.isArray(botdojoResponse.suggestedQuestions)) {
+      suggestedQuestions = botdojoResponse.suggestedQuestions;
+    }
+    
+    // Add suggested questions to the last bot message if any exist
+    if (suggestedQuestions.length > 0 && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'bot') {
+        lastMessage.suggestedQuestions = suggestedQuestions;
+      }
     }
   } else if (botdojoResponse.steps && Array.isArray(botdojoResponse.steps)) {
     // Handle steps array - look for the final output step

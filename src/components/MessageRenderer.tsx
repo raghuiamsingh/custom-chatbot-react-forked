@@ -3,6 +3,7 @@ import MessageBubble from './MessageBubble';
 import ButtonGroup from './ButtonGroup';
 import Card from './Card';
 import TypingIndicator from './TypingIndicator';
+import SuggestedQuestions from './SuggestedQuestions';
 import { type Message } from '../types';
 
 interface MessageRendererProps {
@@ -10,9 +11,10 @@ interface MessageRendererProps {
   messages: Message[];
   messageIndex: number;
   onButtonClick?: (value: string) => void;
+  onQuestionClick?: (question: string) => void;
 }
 
-const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, messageIndex, onButtonClick }) => {
+const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, messageIndex, onButtonClick, onQuestionClick }) => {
   const isUser = message.role === 'user';
   
   // Group consecutive card messages for grid layout
@@ -97,6 +99,15 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, me
                   ))}
                 </ul>
               </div>
+            )}
+            
+            {/* Dynamic Suggested Questions */}
+            {message.suggestedQuestions && message.suggestedQuestions.length > 0 && onQuestionClick && (
+              <SuggestedQuestions 
+                onQuestionClick={onQuestionClick} 
+                questions={message.suggestedQuestions}
+                variant="dynamic"
+              />
             )}
           </div>
         </div>

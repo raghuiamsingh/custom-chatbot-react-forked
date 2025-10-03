@@ -7,9 +7,10 @@ interface ChatWindowProps {
   messages: Message[];
   onButtonClick?: (value: string) => void;
   onQuestionClick?: (question: string) => void;
+  showInitialSuggestions?: boolean;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick, onQuestionClick }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick, onQuestionClick, showInitialSuggestions = false }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -22,9 +23,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick, onQues
 
       return (
         <div className="flex-1 overflow-y-auto">
-          {/* Suggested Questions Section - only show when no messages */}
-          {messages.length === 0 && onQuestionClick && (
-            <SuggestedQuestions onQuestionClick={onQuestionClick} />
+          {/* Initial Suggested Questions Section - only show when no messages and enabled */}
+          {messages.length === 0 && showInitialSuggestions && onQuestionClick && (
+            <SuggestedQuestions onQuestionClick={onQuestionClick} variant="initial" />
           )}
           
           <div className="max-w-4xl mx-auto px-6 py-6">
@@ -40,6 +41,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick, onQues
                   messages={messages}
                   messageIndex={index}
                   onButtonClick={onButtonClick}
+                  onQuestionClick={onQuestionClick}
                 />
               ))
             )}

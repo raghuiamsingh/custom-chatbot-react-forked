@@ -9,10 +9,16 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [debugMode, setDebugMode] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [showInitialSuggestions, setShowInitialSuggestions] = useState(true);
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
   const sendMessage = async (content: string) => {
+    // Hide initial suggestions on first interaction
+    if (showInitialSuggestions) {
+      setShowInitialSuggestions(false);
+    }
+    
     // Add user message immediately
     const userMessage: Message = {
       id: generateId(),
@@ -106,6 +112,7 @@ function App() {
 
   const handleNewChat = () => {
     setMessages([]);
+    setShowInitialSuggestions(true);
   };
 
       return (
@@ -128,6 +135,7 @@ function App() {
         messages={messages} 
         onButtonClick={handleButtonClick}
         onQuestionClick={sendMessage}
+        showInitialSuggestions={showInitialSuggestions}
       />
       
       <InputBar 
