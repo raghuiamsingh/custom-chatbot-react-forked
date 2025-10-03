@@ -186,7 +186,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50"
+            className="absolute bottom-full left-0 mb-2 w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50"
             variants={panelVariants}
             initial="hidden"
             animate="visible"
@@ -195,7 +195,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
             {/* Header with Refresh Button */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">
                   Suggested Questions
                 </h3>
                 {suggestionSets.length > 1 && (
@@ -249,7 +249,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <span className="text-sm md:text-base font-medium text-gray-800 dark:text-gray-200 text-center leading-relaxed">
+                      <span className="text-sm md:text-base font-normal text-gray-800 dark:text-gray-200 text-center leading-relaxed">
                         {question}
                       </span>
                     </motion.button>
