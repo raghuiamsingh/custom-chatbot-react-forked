@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health check endpoint for server monitoring
 - **Suggestions Endpoint**: New /suggestions endpoint for multiple question sets with BotDojo integration
 - **Typing Indicator Animation**: Real-time typing indicator that appears immediately when user sends a message and disappears when bot response arrives
-- **Suggested Questions Section**: Dual layout system with onboarding vertical list and in-conversation action chip with expandable grid panel, multiple suggestion sets, cycling refresh, and smooth animations
+- **Suggested Questions Section**: Dual layout system with onboarding vertical list and in-conversation action chip with expandable horizontal tile grid, multiple suggestion sets, cycling refresh, and smooth animations
 
 ### Fixed
 - BotDojo API authentication (401 Unauthorized error resolved)
@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Canvas Reference Cleanup**: Removes BotDojo canvas markers from text content
 - **Multi-Message Support**: Single BotDojo response now generates multiple message types
 - **Typing Indicator UX**: Smooth animated typing indicator with staggered bounce effect and dark mode support
-- **Suggested Questions UX**: Dual layout system with onboarding vertical list, in-conversation action chip, expandable grid panel, multiple suggestion sets, cycling refresh, context-aware loading, and smooth Framer Motion animations
+- **Suggested Questions UX**: Dual layout system with onboarding vertical list, in-conversation action chip, expandable horizontal tile grid, multiple suggestion sets, cycling refresh, context-aware loading, and smooth Framer Motion animations
 
 ### Changed
 - Updated server configuration to use correct BotDojo API credentials
