@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ChatWindow from './components/ChatWindow';
 import InputBar from './components/InputBar';
 import SettingsDropdown from './components/SettingsDropdown';
+import ThemeToggle from './components/ThemeToggle';
 import { type Message } from './types';
 
 function App() {
@@ -93,15 +94,18 @@ function App() {
   };
 
       return (
-        <div className="flex flex-col h-screen bg-gray-50 font-sans">
-          <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 font-sans transition-colors duration-300 ease-in-out">
+          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 shadow-sm transition-colors duration-300 ease-in-out">
             <div className="flex justify-between items-center max-w-4xl mx-auto">
-              <h1 className="text-lg font-semibold text-gray-800">ChatBot</h1>
-              <SettingsDropdown
-                debugMode={debugMode}
-                onDebugModeChange={setDebugMode}
-                onNewChat={handleNewChat}
-              />
+              <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 transition-colors duration-300 ease-in-out">ChatBot</h1>
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <SettingsDropdown
+                  debugMode={debugMode}
+                  onDebugModeChange={setDebugMode}
+                  onNewChat={handleNewChat}
+                />
+              </div>
             </div>
           </div>
       

@@ -33,7 +33,7 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
       {/* Settings Icon Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
         aria-label="Settings"
       >
         <svg
@@ -60,9 +60,9 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-          <div className="px-4 py-2 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-800">Settings</h3>
+        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50 transition-colors duration-300 ease-in-out">
+          <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 transition-colors duration-300 ease-in-out">Settings</h3>
           </div>
           
           {/* Debug Mode Toggle */}
@@ -72,17 +72,17 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
                 type="checkbox"
                 checked={debugMode}
                 onChange={(e) => onDebugModeChange(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-2 transition-colors duration-300 ease-in-out"
               />
               <div className="flex-1">
-                <span className="text-sm font-medium text-gray-700">Debug Mode</span>
-                <p className="text-xs text-gray-500">Show raw BotDojo responses in console</p>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300 ease-in-out">Debug Mode</span>
+                <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300 ease-in-out">Show raw BotDojo responses in console</p>
               </div>
             </label>
           </div>
 
           {/* Divider */}
-          <div className="border-t border-gray-100"></div>
+          <div className="border-t border-gray-100 dark:border-gray-700"></div>
 
           {/* New Chat Button */}
           <div className="px-4 py-3">
@@ -91,7 +91,7 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
                 onNewChat();
                 setIsOpen(false);
               }}
-              className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+              className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-300 ease-in-out"
             >
               <svg
                 className="w-4 h-4"

@@ -53,7 +53,7 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, me
           <div className="max-w-2xl mx-auto">
             {message.type === 'text' && (
               <div className="px-4 py-3">
-                <div className="text-base leading-relaxed text-gray-800 whitespace-pre-wrap">
+                <div className="text-base leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap transition-colors duration-300 ease-in-out">
                   {message.content.text}
                 </div>
               </div>
@@ -85,7 +85,7 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, me
             
             {message.type === 'list' && (
               <div className="px-4 py-3">
-                <ul className="list-disc list-inside space-y-2 text-base leading-relaxed text-gray-800">
+                <ul className="list-disc list-inside space-y-2 text-base leading-relaxed text-gray-800 dark:text-gray-100 transition-colors duration-300 ease-in-out">
                   {message.content.items.map((item: string, index: number) => (
                     <li key={index}>{item}</li>
                   ))}
