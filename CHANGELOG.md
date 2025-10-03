@@ -32,6 +32,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for multiple message responses from BotDojo
 - Health check endpoint for server monitoring
 
+### Fixed
+- BotDojo API authentication (401 Unauthorized error resolved)
+- Correct API endpoint URL format for BotDojo flows
+- Request body format to match BotDojo API expectations
+- Response normalization to handle BotDojo's complex response structure
+- Message content parsing for object-based content format
+- Error handling with detailed error messages from BotDojo API
+
+### Changed
+- Updated server configuration to use correct BotDojo API credentials
+- Modified request body format from `{input, stream}` to `{body: {text_input}}`
+- Enhanced response normalization to extract text from BotDojo steps structure
+- Improved error handling to show actual BotDojo API error messages
+
 ### Technical Details
 - Built with React 18 and TypeScript
 - Styled with TailwindCSS

@@ -21,9 +21,12 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, onButtonClic
         
         {message.type === 'buttons' && (
           <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
-            <p className="text-sm mb-2">{message.content}</p>
+            <p className="text-sm mb-2">
+              {typeof message.content === 'string' ? message.content : message.content.text || ''}
+            </p>
             <ButtonGroup 
-              buttons={message.content.buttons || []} 
+              buttons={typeof message.content === 'object' && message.content.options ? 
+                message.content.options.map((option: string) => ({ text: option, value: option })) : []} 
               onButtonClick={onButtonClick || (() => {})} 
             />
           </div>
@@ -31,22 +34,27 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, onButtonClic
         
         {message.type === 'card' && (
           <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
-            <p className="text-sm mb-2">{message.content}</p>
+            <p className="text-sm mb-2">
+              {typeof message.content === 'string' ? message.content : message.content.text || ''}
+            </p>
             <Card
-              title={message.content.card?.title || ''}
-              description={message.content.card?.description || ''}
-              image={message.content.card?.image}
+              title={typeof message.content === 'object' ? message.content.title || '' : ''}
+              description={typeof message.content === 'object' ? message.content.description || '' : ''}
+              image={typeof message.content === 'object' ? message.content.image : undefined}
             />
           </div>
         )}
         
         {message.type === 'list' && (
           <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
-            <p className="text-sm mb-2">{message.content}</p>
+            <p className="text-sm mb-2">
+              {typeof message.content === 'string' ? message.content : message.content.text || ''}
+            </p>
             <ul className="list-disc list-inside space-y-1">
-              {Array.isArray(message.content.list) && message.content.list.map((item: string, index: number) => (
-                <li key={index} className="text-sm">{item}</li>
-              ))}
+              {typeof message.content === 'object' && Array.isArray(message.content.list) && 
+                message.content.list.map((item: string, index: number) => (
+                  <li key={index} className="text-sm">{item}</li>
+                ))}
             </ul>
           </div>
         )}

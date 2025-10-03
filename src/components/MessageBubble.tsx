@@ -1,12 +1,15 @@
 import React from 'react';
 
 interface MessageBubbleProps {
-  content: string;
+  content: string | { text: string };
   role: 'user' | 'bot';
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ content, role }) => {
   const isUser = role === 'user';
+  
+  // Extract text content from either string or object
+  const textContent = typeof content === 'string' ? content : content.text;
   
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -17,7 +20,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ content, role }) => {
             : 'bg-gray-200 text-gray-800'
         }`}
       >
-        <p className="text-sm whitespace-pre-wrap">{content}</p>
+        <p className="text-sm whitespace-pre-wrap">{textContent}</p>
       </div>
     </div>
   );

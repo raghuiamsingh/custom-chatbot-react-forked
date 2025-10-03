@@ -13,17 +13,52 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// BotDojo API configuration
-const BOTDOJO_API_KEY = process.env.BOTDOJO_API_KEY;
-const BOTDOJO_BASE_URL = process.env.BOTDOJO_BASE_URL;
-const BOTDOJO_FLOW_ID = process.env.BOTDOJO_FLOW_ID;
+// BotDojo API configuration - using correct values from working curl command
+const BOTDOJO_API_KEY = 'd79fa8f7-d776-431e-8fbc-56f47deb79d5';
+const BOTDOJO_ACCOUNT_ID = 'afa02f70-4182-11f0-a4dd-cb9f7db4f88a';
+const BOTDOJO_PROJECT_ID = 'cbeee3b0-4182-11f0-b112-85b41bbb6a74';
+const BOTDOJO_FLOW_ID = '596f6181-5c0c-11f0-86ab-7561582ecdb8';
+const BOTDOJO_BASE_URL = 'https://api.botdojo.com/api/v1';
 
 // Function to normalize BotDojo response into our message format
 function normalizeBotDojoResponse(botdojoResponse) {
   const messages = [];
-  
-  // Handle BotDojo response structure
-  if (botdojoResponse.output && Array.isArray(botdojoResponse.output)) {
+
+  // Handle BotDojo flow run response structure
+  if (botdojoResponse.response && botdojoResponse.response.text_output) {
+    // Extract the main text response
+    messages.push({
+      role: 'bot',
+      type: 'text',
+      content: { text: botdojoResponse.response.text_output }
+    });
+  } else if (botdojoResponse.steps && Array.isArray(botdojoResponse.steps)) {
+    // Handle steps array - look for the final output step
+    const outputStep = botdojoResponse.steps.find(step => 
+      step.stepLabel === 'Output' && step.content
+    );
+    
+    if (outputStep && outputStep.content) {
+      messages.push({
+        role: 'bot',
+        type: 'text',
+        content: { text: outputStep.content }
+      });
+    } else {
+      // Fallback: use the last step with content
+      const lastStepWithContent = botdojoResponse.steps
+        .filter(step => step.content && step.content.trim())
+        .pop();
+      
+      if (lastStepWithContent) {
+        messages.push({
+          role: 'bot',
+          type: 'text',
+          content: { text: lastStepWithContent.content }
+        });
+      }
+    }
+  } else if (botdojoResponse.output && Array.isArray(botdojoResponse.output)) {
     // If BotDojo returns an array of outputs
     botdojoResponse.output.forEach(output => {
       if (output.type === 'text') {
@@ -96,32 +131,38 @@ app.post('/chat', async (req, res) => {
     console.log('Received message:', message);
 
     // Validate required environment variables
-    if (!BOTDOJO_API_KEY || !BOTDOJO_BASE_URL || !BOTDOJO_FLOW_ID) {
-      throw new Error('Missing BotDojo configuration. Please set BOTDOJO_API_KEY, BOTDOJO_BASE_URL, and BOTDOJO_FLOW_ID');
+    if (!BOTDOJO_API_KEY || !BOTDOJO_BASE_URL || !BOTDOJO_ACCOUNT_ID || !BOTDOJO_PROJECT_ID || !BOTDOJO_FLOW_ID) {
+      throw new Error('Missing BotDojo configuration. Please set all required BotDojo environment variables');
     }
 
     // Construct BotDojo endpoint
-    const botdojoEndpoint = `${BOTDOJO_BASE_URL}/${BOTDOJO_FLOW_ID}/run`;
+    const botdojoEndpoint = `${BOTDOJO_BASE_URL}/accounts/${BOTDOJO_ACCOUNT_ID}/projects/${BOTDOJO_PROJECT_ID}/flows/${BOTDOJO_FLOW_ID}/run`;
+    
+    const requestBody = {
+      body: {
+        text_input: message
+      }
+    };
+
+    console.log('Calling BotDojo API:', botdojoEndpoint);
 
     // Call BotDojo API
     const botdojoResponse = await fetch(botdojoEndpoint, {
       method: 'POST',
       headers: {
         'Authorization': BOTDOJO_API_KEY,
+        'X-API-Key': BOTDOJO_API_KEY,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        input: message,
-        stream: false
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!botdojoResponse.ok) {
-      throw new Error(`BotDojo API error: ${botdojoResponse.status} ${botdojoResponse.statusText}`);
+      const errorText = await botdojoResponse.text();
+      throw new Error(`BotDojo API error: ${botdojoResponse.status} ${botdojoResponse.statusText} - ${errorText}`);
     }
 
     const botdojoData = await botdojoResponse.json();
-    console.log('BotDojo response:', botdojoData);
 
     // Normalize the response
     const messages = normalizeBotDojoResponse(botdojoData);
@@ -137,7 +178,7 @@ app.post('/chat', async (req, res) => {
       messages: [{
         role: 'bot',
         type: 'text',
-        content: { text: 'Error contacting BotDojo.' }
+        content: { text: `Error: ${error.message}` }
       }]
     });
   }

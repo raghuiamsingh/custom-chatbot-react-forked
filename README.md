@@ -39,11 +39,19 @@ A modern React-based chat application built with Vite, TypeScript, and TailwindC
    ```
 
 4. **Configure BotDojo API**
-   Set your environment variables:
+   
+   The server is pre-configured with working BotDojo credentials. If you need to use different credentials, you can:
+   
+   - Set environment variables directly:
    ```bash
    export BOTDOJO_API_KEY="your-api-key-here"
-   export BOTDOJO_ENDPOINT="https://api.botdojo.com/v1/chat"
+   export BOTDOJO_BASE_URL="https://api.botdojo.com/api/v1"
+   export BOTDOJO_ACCOUNT_ID="your-account-id"
+   export BOTDOJO_PROJECT_ID="your-project-id"
+   export BOTDOJO_FLOW_ID="your-flow-id"
    ```
+   
+   - Or modify the hardcoded values in `server/server.js`
 
 5. **Start the backend server**
    ```bash
@@ -135,10 +143,20 @@ The server (`server/server.js`) provides:
 
 ### BotDojo Integration
 
-The server normalizes BotDojo API responses into the expected format. Set these environment variables:
+The server normalizes BotDojo API responses into the expected format. The application is pre-configured with working BotDojo credentials for a supplement recommendation flow.
 
+**Current Configuration:**
+- ✅ **API Key**: Pre-configured and working
+- ✅ **Endpoint**: `https://api.botdojo.com/api/v1/accounts/{account_id}/projects/{project_id}/flows/{flow_id}/run`
+- ✅ **Request Format**: `{body: {text_input: "user message"}}`
+- ✅ **Response Handling**: Extracts text from BotDojo's complex response structure
+
+**Environment Variables (if needed):**
 - `BOTDOJO_API_KEY`: Your BotDojo API key
-- `BOTDOJO_ENDPOINT`: BotDojo API endpoint URL
+- `BOTDOJO_BASE_URL`: BotDojo API base URL (https://api.botdojo.com/api/v1)
+- `BOTDOJO_ACCOUNT_ID`: Your BotDojo account ID
+- `BOTDOJO_PROJECT_ID`: Your BotDojo project ID
+- `BOTDOJO_FLOW_ID`: Your BotDojo flow ID
 - `PORT`: Server port (default: 3001)
 
 ## Project Structure
