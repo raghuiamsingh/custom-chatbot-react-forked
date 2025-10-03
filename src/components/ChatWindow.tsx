@@ -28,8 +28,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick }) => {
             ) : (
               messages.map((message, index) => (
                 <MessageRenderer
-                  key={index}
+                  key={message.id || index}
                   message={message}
+                  messages={messages}
+                  messageIndex={index}
                   onButtonClick={onButtonClick}
                 />
               ))
