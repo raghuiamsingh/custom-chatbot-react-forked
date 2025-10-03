@@ -1,13 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import MessageRenderer from './MessageRenderer';
+import SuggestedQuestions from './SuggestedQuestions';
 import { type Message } from '../types';
 
 interface ChatWindowProps {
   messages: Message[];
   onButtonClick?: (value: string) => void;
+  onQuestionClick?: (question: string) => void;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick, onQuestionClick }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -20,6 +22,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick }) => {
 
       return (
         <div className="flex-1 overflow-y-auto">
+          {/* Suggested Questions Section - only show when no messages */}
+          {messages.length === 0 && onQuestionClick && (
+            <SuggestedQuestions onQuestionClick={onQuestionClick} />
+          )}
+          
           <div className="max-w-4xl mx-auto px-6 py-6">
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">

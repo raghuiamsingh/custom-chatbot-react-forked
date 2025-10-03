@@ -127,6 +127,7 @@ function App() {
       <ChatWindow 
         messages={messages} 
         onButtonClick={handleButtonClick}
+        onQuestionClick={sendMessage}
       />
       
       <InputBar 
