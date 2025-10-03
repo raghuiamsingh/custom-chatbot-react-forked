@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import ChatWindow from './components/ChatWindow';
 import InputBar from './components/InputBar';
-import { type Message } from './components/MessageRenderer';
+import { type Message } from './types';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const generateId = () => Math.random().toString(36).substr(2, 9);
+
   const sendMessage = async (content: string) => {
     // Add user message immediately
     const userMessage: Message = {
+      id: generateId(),
       role: 'user',
       type: 'text',
       content: content
@@ -36,11 +39,10 @@ function App() {
       
       // Add bot response
       const botMessage: Message = {
-        role: 'assistant',
+        id: generateId(),
+        role: 'bot',
         type: data.type || 'text',
-        content: data.content || 'Sorry, I could not process your message.',
-        buttons: data.buttons,
-        card: data.card
+        content: data.content || 'Sorry, I could not process your message.'
       };
       
       setMessages(prev => [...prev, botMessage]);
@@ -48,7 +50,8 @@ function App() {
       console.error('Error sending message:', error);
       // Add error message
       const errorMessage: Message = {
-        role: 'assistant',
+        id: generateId(),
+        role: 'bot',
         type: 'text',
         content: 'Sorry, there was an error processing your message. Please try again.'
       };

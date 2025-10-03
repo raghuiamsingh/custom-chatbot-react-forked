@@ -2,21 +2,7 @@ import React from 'react';
 import MessageBubble from './MessageBubble';
 import ButtonGroup from './ButtonGroup';
 import Card from './Card';
-
-export type Message = {
-  role: 'user' | 'assistant';
-  type: 'text' | 'buttons' | 'card';
-  content: string;
-  buttons?: Array<{
-    text: string;
-    value: string;
-  }>;
-  card?: {
-    title: string;
-    description: string;
-    image?: string;
-  };
-};
+import { type Message } from '../types';
 
 interface MessageRendererProps {
   message: Message;
@@ -33,24 +19,35 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, onButtonClic
           <MessageBubble content={message.content} role={message.role} />
         )}
         
-        {message.type === 'buttons' && message.buttons && (
+        {message.type === 'buttons' && (
           <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
             <p className="text-sm mb-2">{message.content}</p>
             <ButtonGroup 
-              buttons={message.buttons} 
+              buttons={message.content.buttons || []} 
               onButtonClick={onButtonClick || (() => {})} 
             />
           </div>
         )}
         
-        {message.type === 'card' && message.card && (
+        {message.type === 'card' && (
           <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
             <p className="text-sm mb-2">{message.content}</p>
             <Card
-              title={message.card.title}
-              description={message.card.description}
-              image={message.card.image}
+              title={message.content.card?.title || ''}
+              description={message.content.card?.description || ''}
+              image={message.content.card?.image}
             />
+          </div>
+        )}
+        
+        {message.type === 'list' && (
+          <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
+            <p className="text-sm mb-2">{message.content}</p>
+            <ul className="list-disc list-inside space-y-1">
+              {Array.isArray(message.content.list) && message.content.list.map((item: string, index: number) => (
+                <li key={index} className="text-sm">{item}</li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

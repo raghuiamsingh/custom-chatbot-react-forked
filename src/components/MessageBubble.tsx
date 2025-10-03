@@ -2,7 +2,7 @@ import React from 'react';
 
 interface MessageBubbleProps {
   content: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'bot';
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ content, role }) => {

@@ -12,18 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TailwindCSS integration for styling
 - Chat interface components:
   - ChatWindow: Full-height scrollable chat panel
-  - MessageRenderer: Renders different message types (text, buttons, cards)
-  - MessageBubble: Text message bubbles with user/assistant styling
+  - MessageRenderer: Renders different message types (text, buttons, cards, list)
+  - MessageBubble: Text message bubbles with user/bot styling
   - ButtonGroup: Quick reply buttons
   - Card: Card component with image, title, and description
   - InputBar: Sticky bottom input field with send functionality
 - ChatGPT-like layout with full-height flex column design
-- Message state management in App.tsx
+- Message state management in App.tsx with unique ID generation
 - API integration for sending messages to backend (/chat endpoint)
-- Support for different message types: text, buttons, and cards
+- Support for different message types: text, buttons, cards, and list
+- List message type with bullet point rendering
 - Auto-scroll to latest messages
 - Loading states and error handling
 - Responsive design for mobile and desktop
+- Centralized TypeScript types in src/types.ts
 
 ### Technical Details
 - Built with React 18 and TypeScript
