@@ -39,7 +39,11 @@ function parseCanvasData(textContent) {
     // Pattern 6: HTML div wrappers with canvas data (more flexible)
     /<div[^>]*>\s*\{[^}]*canvasData[^}]*\}\s*<\/div>/g,
     // Pattern 7: Markdown-style product links
-    /\[([^\]]+)\]\(https:\/\/[^\/]+\/botdojo\/product\?[^)]+\)/g
+    /\[([^\]]+)\]\(https:\/\/[^\/]+\/botdojo\/product\?[^)]+\)/g,
+    // Pattern 8: iframe tags with product URLs
+    /<iframe[^>]*src="https:\/\/[^\/]+\/botdojo\/product\?[^"]*"[^>]*><\/iframe>/g,
+    // Pattern 9: Any dojo-canvas tags (including ID-only blocks)
+    /<dojo-canvas[^>]*>[\s\S]*?<\/dojo-canvas>/g
   ];
   
   patterns.forEach(pattern => {
@@ -47,6 +51,33 @@ function parseCanvasData(textContent) {
     while ((match = pattern.exec(textContent)) !== null) {
       try {
         let jsonString = match[0];
+        
+        // Handle iframe tags differently
+        if (jsonString.includes('<iframe') && jsonString.includes('src=')) {
+          // Extract URL from iframe src attribute
+          const srcMatch = jsonString.match(/src="([^"]+)"/);
+          if (srcMatch) {
+            const url = srcMatch[1];
+            const urlObj = new URL(url);
+            const sku = urlObj.searchParams.get('sku');
+            const productId = urlObj.searchParams.get('pid');
+            
+            if (sku && productId) {
+              productMessages.push({
+                role: 'bot',
+                type: 'product',
+                content: {
+                  sku: sku,
+                  productId: productId,
+                  title: `Product: ${sku}`,
+                  image: url,
+                  url: url
+                }
+              });
+            }
+          }
+          continue;
+        }
         
         // Handle markdown links differently
         if (jsonString.includes('[') && jsonString.includes('](https://')) {
@@ -73,6 +104,18 @@ function parseCanvasData(textContent) {
             }
           }
           continue;
+        }
+        
+        // Handle dojo-canvas tags (including ID-only blocks)
+        if (jsonString.includes('<dojo-canvas')) {
+          // Try to extract JSON from the tag content
+          const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            jsonString = jsonMatch[0];
+          } else {
+            // ID-only block - skip parsing, will be stripped in cleanTextContent
+            continue;
+          }
         }
         
         // Clean up HTML tags if present
@@ -146,8 +189,14 @@ function cleanTextContent(textContent) {
     /\[([^\]]+)\]\(https:\/\/[^\/]+\/botdojo\/product\?[^)]+\)/g,
     // Pattern 11: HTML div wrappers with flex styling
     /<div[^>]*style="[^"]*display:\s*flex[^"]*"[^>]*>[\s\S]*?<\/div>/g,
-    // Pattern 12: Any remaining HTML div tags
-    /<div[^>]*>[\s\S]*?<\/div>/g
+    // Pattern 12: iframe tags with product URLs
+    /<iframe[^>]*src="https:\/\/[^\/]+\/botdojo\/product\?[^"]*"[^>]*><\/iframe>/g,
+    // Pattern 13: Any dojo-canvas tags (including ID-only blocks)
+    /<dojo-canvas[^>]*>[\s\S]*?<\/dojo-canvas>/g,
+    // Pattern 14: Any remaining HTML div tags
+    /<div[^>]*>[\s\S]*?<\/div>/g,
+    // Pattern 15: Any remaining HTML tags (catch-all)
+    /<[^>]*>/g
   ];
   
   patterns.forEach(pattern => {
