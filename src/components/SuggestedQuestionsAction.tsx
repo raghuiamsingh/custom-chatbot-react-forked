@@ -326,7 +326,6 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
                         {isLoadingSets ? 'Loading suggestions...' : 'No suggestions available'}
                       </motion.div>
                     )}
-                    </motion.div>
                   </div>
                   
                   {/* Swipe indicator for mobile */}
