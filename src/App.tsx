@@ -21,7 +21,15 @@ function App() {
       content: { text: content }
     };
     
-    setMessages(prev => [...prev, userMessage]);
+    // Add typing indicator immediately
+    const typingMessage: Message = {
+      id: 'typing',
+      role: 'bot',
+      type: 'typing',
+      content: {}
+    };
+    
+    setMessages(prev => [...prev, userMessage, typingMessage]);
     setIsLoading(true);
 
     try {
@@ -49,37 +57,44 @@ function App() {
         console.groupEnd();
       }
 
-      // Handle multiple messages from server response
-      if (data.messages && Array.isArray(data.messages)) {
-        const botMessages: Message[] = data.messages.map((msg: any) => ({
-          id: generateId(),
-          role: msg.role || 'bot',
-          type: msg.type || 'text',
-          content: msg.content || 'Sorry, I could not process your message.'
-        }));
+      // Remove typing indicator and add real bot messages
+      setMessages(prev => {
+        const messagesWithoutTyping = prev.filter(msg => msg.id !== 'typing');
         
-        setMessages(prev => [...prev, ...botMessages]);
-      } else {
-        // Fallback for single message response
-        const botMessage: Message = {
-          id: generateId(),
-          role: 'bot',
-          type: data.type || 'text',
-          content: data.content || 'Sorry, I could not process your message.'
-        };
-        
-        setMessages(prev => [...prev, botMessage]);
-      }
+        if (data.messages && Array.isArray(data.messages)) {
+          const botMessages: Message[] = data.messages.map((msg: any) => ({
+            id: generateId(),
+            role: msg.role || 'bot',
+            type: msg.type || 'text',
+            content: msg.content || 'Sorry, I could not process your message.'
+          }));
+          
+          return [...messagesWithoutTyping, ...botMessages];
+        } else {
+          // Fallback for single message response
+          const botMessage: Message = {
+            id: generateId(),
+            role: 'bot',
+            type: data.type || 'text',
+            content: data.content || 'Sorry, I could not process your message.'
+          };
+          
+          return [...messagesWithoutTyping, botMessage];
+        }
+      });
     } catch (error) {
       console.error('Error sending message:', error);
-      // Add error message
-      const errorMessage: Message = {
-        id: generateId(),
-        role: 'bot',
-        type: 'text',
-        content: 'Sorry, there was an error processing your message. Please try again.'
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      // Remove typing indicator and add error message
+      setMessages(prev => {
+        const messagesWithoutTyping = prev.filter(msg => msg.id !== 'typing');
+        const errorMessage: Message = {
+          id: generateId(),
+          role: 'bot',
+          type: 'text',
+          content: { text: 'Sorry, there was an error processing your message. Please try again.' }
+        };
+        return [...messagesWithoutTyping, errorMessage];
+      });
     } finally {
       setIsLoading(false);
     }

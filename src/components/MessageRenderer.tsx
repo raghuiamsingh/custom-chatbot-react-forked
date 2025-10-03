@@ -2,6 +2,7 @@ import React from 'react';
 import MessageBubble from './MessageBubble';
 import ButtonGroup from './ButtonGroup';
 import Card from './Card';
+import TypingIndicator from './TypingIndicator';
 import { type Message } from '../types';
 
 interface MessageRendererProps {
@@ -45,6 +46,11 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, me
         </div>
       </div>
     );
+  }
+  
+  // Handle typing indicator
+  if (message.type === 'typing') {
+    return <TypingIndicator />;
   }
   
       // Bot messages: professional content blocks with centered max-width
