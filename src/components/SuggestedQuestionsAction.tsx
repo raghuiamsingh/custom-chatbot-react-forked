@@ -186,7 +186,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            className="absolute bottom-full left-0 mb-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50"
+            className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50"
             variants={panelVariants}
             initial="hidden"
             animate="visible"
@@ -233,7 +233,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSetIndex}
-                className="grid grid-cols-1 gap-2"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                 variants={questionSetVariants}
                 initial="hidden"
                 animate="visible"
@@ -244,18 +244,18 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
                     <motion.button
                       key={`${currentSetIndex}-${index}`}
                       onClick={() => handleQuestionClick(question)}
-                      className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      className="min-h-[120px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center p-4"
                       variants={buttonVariants}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      <span className="text-sm md:text-base font-medium text-gray-800 dark:text-gray-200 text-center leading-relaxed">
                         {question}
                       </span>
                     </motion.button>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+                  <div className="col-span-full min-h-[120px] flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
                     {isLoadingSets ? 'Loading suggestions...' : 'No suggestions available'}
                   </div>
                 )}
