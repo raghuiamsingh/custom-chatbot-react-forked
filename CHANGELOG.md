@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Card: Card component with image, title, and description
   - InputBar: Sticky bottom input field with send functionality
   - TypingIndicator: Animated typing indicator with bouncing dots
+  - SuggestedQuestions: Starter questions section for new conversations
 - ChatGPT-like layout with full-height flex column design
 - Message state management in App.tsx with unique ID generation
 - API integration for sending messages to backend (/chat endpoint)
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for multiple message responses from BotDojo
 - Health check endpoint for server monitoring
 - **Typing Indicator Animation**: Real-time typing indicator that appears immediately when user sends a message and disappears when bot response arrives
+- **Suggested Questions Section**: Starter questions appear at the top of chat window on first load, providing natural conversation starters for new users
 
 ### Fixed
 - BotDojo API authentication (401 Unauthorized error resolved)
@@ -49,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Canvas Reference Cleanup**: Removes BotDojo canvas markers from text content
 - **Multi-Message Support**: Single BotDojo response now generates multiple message types
 - **Typing Indicator UX**: Smooth animated typing indicator with staggered bounce effect and dark mode support
+- **Suggested Questions UX**: Professional pill-style buttons with hover effects, responsive design, and seamless integration with chat flow
 
 ### Changed
 - Updated server configuration to use correct BotDojo API credentials
