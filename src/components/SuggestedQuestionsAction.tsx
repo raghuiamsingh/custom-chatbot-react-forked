@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 
 interface SuggestedQuestionsActionProps {
   onQuestionClick: (question: string) => void;
@@ -20,6 +20,11 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
   const [suggestionSets, setSuggestionSets] = useState<string[][]>([]);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [isLoadingSets, setIsLoadingSets] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Motion values for drag gestures
+  const x = useMotionValue(0);
+  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 0.5, 1, 0.5, 0]);
 
   // Load suggestion sets when component mounts or context changes
   useEffect(() => {
@@ -93,6 +98,36 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
     }
   };
 
+  // Swipe gesture handlers
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
+  const handleDragEnd = (event: any, info: any) => {
+    setIsDragging(false);
+    
+    const threshold = 100; // Minimum distance for swipe
+    const velocityThreshold = 0.5; // Minimum velocity for swipe
+    
+    // Check if swipe meets threshold (distance or velocity)
+    if (Math.abs(info.offset.x) > threshold || Math.abs(info.velocity.x) > velocityThreshold) {
+      if (info.offset.x > 0 || info.velocity.x > 0) {
+        // Swipe right - go to previous set
+        if (suggestionSets.length > 1) {
+          setCurrentSetIndex((prev) => (prev - 1 + suggestionSets.length) % suggestionSets.length);
+        }
+      } else {
+        // Swipe left - go to next set
+        if (suggestionSets.length > 1) {
+          setCurrentSetIndex((prev) => (prev + 1) % suggestionSets.length);
+        }
+      }
+    }
+    
+    // Reset position
+    x.set(0);
+  };
+
   // Get current questions to display
   const currentQuestions = suggestionSets.length > 0 
     ? suggestionSets[currentSetIndex] || suggestionSets[0] 
@@ -131,7 +166,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
           opacity: 1, 
           x: 0,
           transition: {
-            duration: 0.25,
+            duration: 0.3,
             ease: "easeOut",
             staggerChildren: 0.1
           }
@@ -140,10 +175,28 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
           opacity: 0, 
           x: -20,
           transition: {
-            duration: 0.25,
+            duration: 0.3,
             ease: "easeIn"
           }
         }
+      };
+
+      // Swipe animation variants
+      const swipeVariants = {
+        enter: (direction: number) => ({
+          x: direction > 0 ? 1000 : -1000,
+          opacity: 0
+        }),
+        center: {
+          zIndex: 1,
+          x: 0,
+          opacity: 1
+        },
+        exit: (direction: number) => ({
+          zIndex: 0,
+          x: direction < 0 ? 1000 : -1000,
+          opacity: 0
+        })
       };
 
       // Animation variants for individual tiles
@@ -236,25 +289,35 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
               </motion.button>
             </div>
 
-                {/* Questions Grid with Animation */}
-                <AnimatePresence mode="wait">
+                {/* Questions Grid with Swipe Gestures */}
+                <div className="relative overflow-hidden">
                   <motion.div
-                    key={currentSetIndex}
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-                    variants={questionSetVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.1}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    style={{ x, opacity }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ 
+                      type: "spring", 
+                      stiffness: 300, 
+                      damping: 30 
+                    }}
+                    className={`${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
                   >
                     {currentQuestions.length > 0 ? (
                       currentQuestions.map((question, index) => (
                         <motion.button
                           key={`${currentSetIndex}-${index}`}
-                          onClick={() => handleQuestionClick(question)}
+                          onClick={() => !isDragging && handleQuestionClick(question)}
                           className="min-h-[120px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center p-4"
                           variants={tileVariants}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
+                          initial="hidden"
+                          animate="visible"
                         >
                           <span className="text-sm md:text-base font-medium text-gray-800 dark:text-gray-200 text-center leading-relaxed">
                             {question}
@@ -265,12 +328,30 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
                       <motion.div 
                         className="col-span-full min-h-[120px] flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm"
                         variants={tileVariants}
+                        initial="hidden"
+                        animate="visible"
                       >
                         {isLoadingSets ? 'Loading suggestions...' : 'No suggestions available'}
                       </motion.div>
                     )}
                   </motion.div>
-                </AnimatePresence>
+                  
+                  {/* Swipe indicator for mobile */}
+                  {suggestionSets.length > 1 && (
+                    <div className="flex justify-center mt-3 space-x-1">
+                      {suggestionSets.map((_, index) => (
+                        <div
+                          key={index}
+                          className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                            index === currentSetIndex 
+                              ? 'bg-blue-500' 
+                              : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
           </motion.div>
         )}
       </AnimatePresence>
