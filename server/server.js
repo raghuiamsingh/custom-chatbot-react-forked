@@ -407,12 +407,200 @@ app.post('/debug-botdojo', async (req, res) => {
   }
 });
 
+// POST /suggestions endpoint for multiple question sets
+app.post('/suggestions', async (req, res) => {
+  try {
+    const { context, currentSetIndex = 0 } = req.body;
+    
+    console.log('Received suggestions request:', { context, currentSetIndex });
+
+    // Validate required environment variables
+    if (!BOTDOJO_API_KEY || !BOTDOJO_BASE_URL || !BOTDOJO_ACCOUNT_ID || !BOTDOJO_PROJECT_ID || !BOTDOJO_FLOW_ID) {
+      throw new Error('Missing BotDojo configuration. Please set all required BotDojo environment variables');
+    }
+
+    // Construct BotDojo endpoint
+    const botdojoEndpoint = `${BOTDOJO_BASE_URL}/accounts/${BOTDOJO_ACCOUNT_ID}/projects/${BOTDOJO_PROJECT_ID}/flows/${BOTDOJO_FLOW_ID}/run`;
+    
+    const requestBody = {
+      body: {
+        text_input: context || "Please provide suggested follow-up questions",
+        requestType: "suggestions"
+      }
+    };
+
+    console.log('Calling BotDojo API for suggestions:', botdojoEndpoint);
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+    // Call BotDojo API
+    const botdojoResponse = await fetch(botdojoEndpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': BOTDOJO_API_KEY,
+        'X-API-Key': BOTDOJO_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!botdojoResponse.ok) {
+      const errorText = await botdojoResponse.text();
+      throw new Error(`BotDojo API error: ${botdojoResponse.status} ${botdojoResponse.statusText} - ${errorText}`);
+    }
+
+    const botdojoData = await botdojoResponse.json();
+    console.log('=== RAW BOTDOJO RESPONSE ===');
+    console.log(JSON.stringify(botdojoData, null, 2));
+    console.log('=== END RAW RESPONSE ===');
+
+    // Extract and normalize suggestions from BotDojo response
+    const suggestedQuestions = extractSuggestedQuestions(botdojoData);
+    
+    console.log('=== NORMALIZED SUGGESTIONS ===');
+    console.log(JSON.stringify(suggestedQuestions, null, 2));
+    console.log('=== END NORMALIZED SUGGESTIONS ===');
+
+    res.json({
+      suggestedQuestions,
+      totalSets: suggestedQuestions.length,
+      currentSetIndex: currentSetIndex % suggestedQuestions.length
+    });
+
+  } catch (error) {
+    console.error('Suggestions endpoint error:', error);
+    
+    // Fallback to default suggestions
+    const defaultSuggestions = [
+      [
+        "What supplements can help with sleep?",
+        "What can I take for stress?", 
+        "How do I support my immune system?"
+      ],
+      [
+        "What vitamins should I take daily?",
+        "Are there supplements for energy and focus?",
+        "What helps with digestion?"
+      ],
+      [
+        "What are natural-only options?",
+        "Which supplements support recovery?",
+        "What helps with heart health?"
+      ]
+    ];
+
+    res.json({
+      suggestedQuestions: defaultSuggestions,
+      totalSets: defaultSuggestions.length,
+      currentSetIndex: 0,
+      error: 'Using fallback suggestions',
+      details: error.message
+    });
+  }
+});
+
+// Function to extract suggested questions from BotDojo response
+function extractSuggestedQuestions(botdojoResponse) {
+  const suggestions = [];
+  
+  // Try to extract from different possible locations in BotDojo response
+  if (botdojoResponse.suggestedQuestions && Array.isArray(botdojoResponse.suggestedQuestions)) {
+    // Direct suggestions array
+    if (Array.isArray(botdojoResponse.suggestedQuestions[0])) {
+      // Already grouped
+      return botdojoResponse.suggestedQuestions;
+    } else {
+      // Single array - group into sets of 3
+      const grouped = [];
+      for (let i = 0; i < botdojoResponse.suggestedQuestions.length; i += 3) {
+        grouped.push(botdojoResponse.suggestedQuestions.slice(i, i + 3));
+      }
+      return grouped;
+    }
+  }
+  
+  // Try to extract from aiMessage.steps
+  if (botdojoResponse.aiMessage && botdojoResponse.aiMessage.steps) {
+    const steps = botdojoResponse.aiMessage.steps;
+    
+    // Look for steps with suggestion data
+    const suggestionSteps = steps.filter(step => 
+      step.stepLabel && step.stepLabel.toLowerCase().includes('suggestion')
+    );
+    
+    if (suggestionSteps.length > 0) {
+      suggestionSteps.forEach(step => {
+        if (step.content) {
+          try {
+            const content = typeof step.content === 'string' ? JSON.parse(step.content) : step.content;
+            if (content.suggestions && Array.isArray(content.suggestions)) {
+              suggestions.push(content.suggestions);
+            }
+          } catch (e) {
+            // If not JSON, treat as text and split by lines
+            const lines = step.content.split('\n').filter(line => line.trim());
+            if (lines.length > 0) {
+              suggestions.push(lines);
+            }
+          }
+        }
+      });
+    }
+  }
+  
+  // Try to extract from response.text_output
+  if (botdojoResponse.response && botdojoResponse.response.text_output) {
+    const text = botdojoResponse.response.text_output;
+    
+    // Look for patterns like "Suggested Questions:" followed by lists
+    const suggestionMatches = text.match(/suggested questions?:?\s*([\s\S]*?)(?=\n\n|\n[A-Z]|$)/gi);
+    
+    if (suggestionMatches) {
+      suggestionMatches.forEach(match => {
+        const lines = match.split('\n')
+          .map(line => line.replace(/^[-•*]\s*/, '').trim())
+          .filter(line => line.length > 0 && !line.toLowerCase().includes('suggested questions'));
+        
+        if (lines.length > 0) {
+          // Group into sets of 3
+          for (let i = 0; i < lines.length; i += 3) {
+            suggestions.push(lines.slice(i, i + 3));
+          }
+        }
+      });
+    }
+  }
+  
+  // If no suggestions found, return default sets
+  if (suggestions.length === 0) {
+    return [
+      [
+        "What supplements can help with sleep?",
+        "What can I take for stress?", 
+        "How do I support my immune system?"
+      ],
+      [
+        "What vitamins should I take daily?",
+        "Are there supplements for energy and focus?",
+        "What helps with digestion?"
+      ],
+      [
+        "What are natural-only options?",
+        "Which supplements support recovery?",
+        "What helps with heart health?"
+      ]
+    ];
+  }
+  
+  return suggestions;
+}
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Chat endpoint: http://localhost:${PORT}/chat`);
   console.log(`Debug endpoint: http://localhost:${PORT}/debug-botdojo`);
+  console.log(`Suggestions endpoint: http://localhost:${PORT}/suggestions`);
   console.log('Make sure to set BOTDOJO_API_KEY, BOTDOJO_BASE_URL, and BOTDOJO_FLOW_ID environment variables');
 });
 

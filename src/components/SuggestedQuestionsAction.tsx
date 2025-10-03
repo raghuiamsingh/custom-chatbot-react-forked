@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SuggestedQuestionsActionProps {
@@ -6,15 +6,73 @@ interface SuggestedQuestionsActionProps {
   onRefresh?: () => void;
   questions?: string[];
   isLoading?: boolean;
+  context?: string;
 }
 
 const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
   onQuestionClick,
   onRefresh,
   questions = [],
-  isLoading = false
+  isLoading = false,
+  context
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [suggestionSets, setSuggestionSets] = useState<string[][]>([]);
+  const [currentSetIndex, setCurrentSetIndex] = useState(0);
+  const [isLoadingSets, setIsLoadingSets] = useState(false);
+
+  // Load suggestion sets when component mounts or context changes
+  useEffect(() => {
+    if (isExpanded && suggestionSets.length === 0) {
+      loadSuggestionSets();
+    }
+  }, [isExpanded, context]);
+
+  const loadSuggestionSets = async () => {
+    setIsLoadingSets(true);
+    try {
+      const response = await fetch('http://localhost:3001/suggestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          context: context || 'general health and wellness',
+          currentSetIndex: currentSetIndex
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load suggestions');
+      }
+
+      const data = await response.json();
+      setSuggestionSets(data.suggestedQuestions || []);
+      setCurrentSetIndex(data.currentSetIndex || 0);
+    } catch (error) {
+      console.error('Error loading suggestion sets:', error);
+      // Fallback to default sets
+      setSuggestionSets([
+        [
+          "What supplements can help with sleep?",
+          "What can I take for stress?", 
+          "How do I support my immune system?"
+        ],
+        [
+          "What vitamins should I take daily?",
+          "Are there supplements for energy and focus?",
+          "What helps with digestion?"
+        ],
+        [
+          "What are natural-only options?",
+          "Which supplements support recovery?",
+          "What helps with heart health?"
+        ]
+      ]);
+    } finally {
+      setIsLoadingSets(false);
+    }
+  };
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -26,10 +84,19 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
   };
 
   const handleRefresh = () => {
-    if (onRefresh) {
-      onRefresh();
+    if (suggestionSets.length > 1) {
+      // Cycle through existing sets
+      setCurrentSetIndex((prev) => (prev + 1) % suggestionSets.length);
+    } else {
+      // Load new sets from server
+      loadSuggestionSets();
     }
   };
+
+  // Get current questions to display
+  const currentQuestions = suggestionSets.length > 0 
+    ? suggestionSets[currentSetIndex] || suggestionSets[0] 
+    : questions;
 
   // Animation variants
   const panelVariants = {
@@ -63,6 +130,27 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
       transition: {
         duration: 0.15,
         ease: "easeOut"
+      }
+    }
+  };
+
+  const questionSetVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.3,
+        ease: "easeOut",
+        staggerChildren: 0.1
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      y: -10,
+      transition: {
+        duration: 0.2,
+        ease: "easeIn"
       }
     }
   };
@@ -106,59 +194,73 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
           >
             {/* Header with Refresh Button */}
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Suggested Questions
-              </h3>
-              {onRefresh && (
-                <motion.button
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded-full"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  animate={{ rotate: isLoading ? 360 : 0 }}
-                  transition={{ duration: isLoading ? 1 : 0.2, repeat: isLoading ? Infinity : 0 }}
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                  Suggested Questions
+                </h3>
+                {suggestionSets.length > 1 && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {currentSetIndex + 1} of {suggestionSets.length}
+                  </span>
+                )}
+              </div>
+              <motion.button
+                onClick={handleRefresh}
+                disabled={isLoadingSets}
+                className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded-full"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                animate={{ rotate: isLoadingSets ? 360 : 0 }}
+                transition={{ duration: isLoadingSets ? 1 : 0.2, repeat: isLoadingSets ? Infinity : 0 }}
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                </motion.button>
-              )}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </motion.button>
             </div>
 
-            {/* Questions Grid */}
-            <div className="grid grid-cols-1 gap-2">
-              {questions.length > 0 ? (
-                questions.map((question, index) => (
-                  <motion.button
-                    key={index}
-                    onClick={() => handleQuestionClick(question)}
-                    className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                    variants={buttonVariants}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                      {question}
-                    </span>
-                  </motion.button>
-                ))
-              ) : (
-                <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                  No suggestions available
-                </div>
-              )}
-            </div>
+            {/* Questions Grid with Animation */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentSetIndex}
+                className="grid grid-cols-1 gap-2"
+                variants={questionSetVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                {currentQuestions.length > 0 ? (
+                  currentQuestions.map((question, index) => (
+                    <motion.button
+                      key={`${currentSetIndex}-${index}`}
+                      onClick={() => handleQuestionClick(question)}
+                      className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      variants={buttonVariants}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                        {question}
+                      </span>
+                    </motion.button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+                    {isLoadingSets ? 'Loading suggestions...' : 'No suggestions available'}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>

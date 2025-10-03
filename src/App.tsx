@@ -186,6 +186,24 @@ function App() {
     return lastBotMessage?.suggestedQuestions || [];
   };
 
+  // Get context from the last bot message for suggestions
+  const getSuggestionsContext = () => {
+    const lastBotMessage = [...messages].reverse().find(msg => msg.role === 'bot');
+    if (lastBotMessage && lastBotMessage.content && lastBotMessage.content.text) {
+      // Extract key topics from the bot's response for context
+      const text = lastBotMessage.content.text.toLowerCase();
+      if (text.includes('sleep')) return 'sleep and relaxation';
+      if (text.includes('energy') || text.includes('focus')) return 'energy and cognitive function';
+      if (text.includes('immune')) return 'immune system support';
+      if (text.includes('stress')) return 'stress management';
+      if (text.includes('vitamin') || text.includes('multivitamin')) return 'daily vitamins and nutrition';
+      if (text.includes('digest')) return 'digestive health';
+      if (text.includes('heart')) return 'cardiovascular health';
+      if (text.includes('recovery')) return 'recovery and performance';
+    }
+    return 'general health and wellness';
+  };
+
       return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 font-sans transition-colors duration-300 ease-in-out">
           <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 shadow-sm transition-colors duration-300 ease-in-out">
@@ -218,6 +236,7 @@ function App() {
               onRefresh={handleRefreshSuggestions}
               questions={getSuggestedQuestions()}
               isLoading={isLoadingSuggestions}
+              context={getSuggestionsContext()}
             />
           </div>
         </div>
