@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for multiple message responses from BotDojo
 - Health check endpoint for server monitoring
 - **Typing Indicator Animation**: Real-time typing indicator that appears immediately when user sends a message and disappears when bot response arrives
-- **Suggested Questions Section**: Contextual starter questions with smooth animations that appear on first load and disappear after interaction, with dynamic suggestions from BotDojo responses
+- **Suggested Questions Section**: Dual layout system with onboarding vertical list and in-conversation action chip with expandable grid panel, smooth animations, and refresh functionality
 
 ### Fixed
 - BotDojo API authentication (401 Unauthorized error resolved)
@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Canvas Reference Cleanup**: Removes BotDojo canvas markers from text content
 - **Multi-Message Support**: Single BotDojo response now generates multiple message types
 - **Typing Indicator UX**: Smooth animated typing indicator with staggered bounce effect and dark mode support
-- **Suggested Questions UX**: Contextual behavior with smooth Framer Motion animations, initial suggestions on load, dynamic suggestions from BotDojo, and seamless integration with chat flow
+- **Suggested Questions UX**: Dual layout system with onboarding vertical list, in-conversation action chip, expandable grid panel, refresh functionality, and smooth Framer Motion animations
 
 ### Changed
 - Updated server configuration to use correct BotDojo API credentials
