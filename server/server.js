@@ -40,6 +40,8 @@ function normalizeBotDojoResponse(botdojoResponse) {
       // Remove canvas references from text
       textContent = textContent.replace(/<\|dojo-canvas\|>[^<]+<\|end\|>/g, '');
       textContent = textContent.replace(/<\|canvas\|>[^<]+<\|end\|>/g, '');
+      // Clean up multiple consecutive newlines
+      textContent = textContent.replace(/\n\s*\n\s*\n+/g, '\n\n');
       textContent = textContent.trim();
     }
     
@@ -93,6 +95,8 @@ function normalizeBotDojoResponse(botdojoResponse) {
     // Clean up canvas references from text
     textContent = textContent.replace(/<\|dojo-canvas\|>[^<]+<\|end\|>/g, '');
     textContent = textContent.replace(/<\|canvas\|>[^<]+<\|end\|>/g, '');
+    // Clean up multiple consecutive newlines
+    textContent = textContent.replace(/\n\s*\n\s*\n+/g, '\n\n');
     textContent = textContent.trim();
     
     if (textContent) {
@@ -113,6 +117,8 @@ function normalizeBotDojoResponse(botdojoResponse) {
       // Clean up canvas references from text
       textContent = textContent.replace(/<\|dojo-canvas\|>[^<]+<\|end\|>/g, '');
       textContent = textContent.replace(/<\|canvas\|>[^<]+<\|end\|>/g, '');
+      // Clean up multiple consecutive newlines
+      textContent = textContent.replace(/\n\s*\n\s*\n+/g, '\n\n');
       textContent = textContent.trim();
       
       if (textContent) {
@@ -133,6 +139,8 @@ function normalizeBotDojoResponse(botdojoResponse) {
         // Clean up canvas references from text
         textContent = textContent.replace(/<\|dojo-canvas\|>[^<]+<\|end\|>/g, '');
         textContent = textContent.replace(/<\|canvas\|>[^<]+<\|end\|>/g, '');
+        // Clean up multiple consecutive newlines
+        textContent = textContent.replace(/\n\s*\n\s*\n+/g, '\n\n');
         textContent = textContent.trim();
         
         if (textContent) {
@@ -152,6 +160,8 @@ function normalizeBotDojoResponse(botdojoResponse) {
         // Clean up canvas references from text
         textContent = textContent.replace(/<\|dojo-canvas\|>[^<]+<\|end\|>/g, '');
         textContent = textContent.replace(/<\|canvas\|>[^<]+<\|end\|>/g, '');
+        // Clean up multiple consecutive newlines
+        textContent = textContent.replace(/\n\s*\n\s*\n+/g, '\n\n');
         textContent = textContent.trim();
         
         if (textContent) {
