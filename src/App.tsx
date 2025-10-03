@@ -22,8 +22,8 @@ function App() {
     setIsLoading(true);
 
     try {
-      // Send message to backend
-      const response = await fetch('/chat', {
+      // Send message to backend server
+      const response = await fetch('http://localhost:3001/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,15 +37,27 @@ function App() {
 
       const data = await response.json();
       
-      // Add bot response
-      const botMessage: Message = {
-        id: generateId(),
-        role: 'bot',
-        type: data.type || 'text',
-        content: data.content || 'Sorry, I could not process your message.'
-      };
-      
-      setMessages(prev => [...prev, botMessage]);
+      // Handle multiple messages from server response
+      if (data.messages && Array.isArray(data.messages)) {
+        const botMessages: Message[] = data.messages.map((msg: any) => ({
+          id: generateId(),
+          role: msg.role || 'bot',
+          type: msg.type || 'text',
+          content: msg.content || 'Sorry, I could not process your message.'
+        }));
+        
+        setMessages(prev => [...prev, ...botMessages]);
+      } else {
+        // Fallback for single message response
+        const botMessage: Message = {
+          id: generateId(),
+          role: 'bot',
+          type: data.type || 'text',
+          content: data.content || 'Sorry, I could not process your message.'
+        };
+        
+        setMessages(prev => [...prev, botMessage]);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       // Add error message

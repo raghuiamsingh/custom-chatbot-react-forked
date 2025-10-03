@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Loading states and error handling
 - Responsive design for mobile and desktop
 - Centralized TypeScript types in src/types.ts
+- Node.js + Express backend server in server/ folder
+- BotDojo API integration with response normalization
+- POST /chat endpoint for handling user messages
+- Support for multiple message responses from BotDojo
+- Health check endpoint for server monitoring
 
 ### Technical Details
 - Built with React 18 and TypeScript

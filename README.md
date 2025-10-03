@@ -27,17 +27,36 @@ A modern React-based chat application built with Vite, TypeScript, and TailwindC
    cd botdojo-custom-chat
    ```
 
-2. **Install dependencies**
+2. **Install frontend dependencies**
    ```bash
    npm install
    ```
 
-3. **Start the development server**
+3. **Setup the backend server**
+   ```bash
+   cd server
+   npm install
+   ```
+
+4. **Configure BotDojo API**
+   Set your environment variables:
+   ```bash
+   export BOTDOJO_API_KEY="your-api-key-here"
+   export BOTDOJO_ENDPOINT="https://api.botdojo.com/v1/chat"
+   ```
+
+5. **Start the backend server**
+   ```bash
+   cd server
+   npm start
+   ```
+
+6. **Start the frontend development server**
    ```bash
    npm run dev
    ```
 
-4. **Open your browser**
+7. **Open your browser**
    Navigate to `http://localhost:5173` to see the application.
 
 ## Usage
@@ -85,39 +104,64 @@ Rich content cards with images, titles, and descriptions:
 
 ## API Integration
 
-The application expects a backend API at `/chat` that accepts POST requests with the following format:
+The application connects to a Node.js + Express server that integrates with the BotDojo API.
 
-### Request
+### Backend Server
+
+The server (`server/server.js`) provides:
+
+- **POST /chat**: Accepts user messages and forwards them to BotDojo API
+- **GET /health**: Health check endpoint
+
+### Request Format
 ```json
 {
   "message": "User's message text"
 }
 ```
 
-### Response
+### Response Format
 ```json
 {
-  "type": "text|buttons|card",
-  "content": "Response content",
-  "buttons": [...], // Optional, for button type
-  "card": {...}     // Optional, for card type
+  "messages": [
+    {
+      "role": "bot",
+      "type": "text|buttons|card|list",
+      "content": "Response content"
+    }
+  ]
 }
 ```
+
+### BotDojo Integration
+
+The server normalizes BotDojo API responses into the expected format. Set these environment variables:
+
+- `BOTDOJO_API_KEY`: Your BotDojo API key
+- `BOTDOJO_ENDPOINT`: BotDojo API endpoint URL
+- `PORT`: Server port (default: 3001)
 
 ## Project Structure
 
 ```
-src/
-├── components/
-│   ├── ChatWindow.tsx      # Main chat container
-│   ├── MessageRenderer.tsx # Message type router
-│   ├── MessageBubble.tsx   # Text message bubbles
-│   ├── ButtonGroup.tsx     # Quick reply buttons
-│   ├── Card.tsx           # Rich content cards
-│   └── InputBar.tsx       # Message input field
-├── App.tsx                # Main application component
-├── main.tsx              # Application entry point
-└── index.css             # TailwindCSS imports
+├── src/                   # React frontend
+│   ├── components/
+│   │   ├── ChatWindow.tsx      # Main chat container
+│   │   ├── MessageRenderer.tsx # Message type router
+│   │   ├── MessageBubble.tsx   # Text message bubbles
+│   │   ├── ButtonGroup.tsx     # Quick reply buttons
+│   │   ├── Card.tsx           # Rich content cards
+│   │   └── InputBar.tsx       # Message input field
+│   ├── types.ts           # TypeScript type definitions
+│   ├── App.tsx            # Main application component
+│   ├── main.tsx           # Application entry point
+│   └── index.css          # TailwindCSS imports
+├── server/                # Node.js backend
+│   ├── server.js          # Express server with BotDojo integration
+│   ├── package.json       # Server dependencies
+│   └── README.md          # Server documentation
+├── package.json           # Frontend dependencies
+└── README.md              # This file
 ```
 
 ## Development
