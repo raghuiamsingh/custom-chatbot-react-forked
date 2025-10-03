@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import ChatWindow from './components/ChatWindow';
 import InputBar from './components/InputBar';
+import SettingsDropdown from './components/SettingsDropdown';
 import { type Message } from './types';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [debugMode, setDebugMode] = useState(false);
+  const [debugMode, setDebugMode] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -87,22 +88,20 @@ function App() {
     await sendMessage(value);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans">
       <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
         <div className="flex justify-between items-center max-w-4xl mx-auto">
           <h1 className="text-xl font-semibold text-gray-800">ChatBot</h1>
-          <label className="flex items-center space-x-2 text-sm">
-            <input
-              type="checkbox"
-              checked={debugMode}
-              onChange={(e) => setDebugMode(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-gray-600">
-              🔍 Debug Mode
-            </span>
-          </label>
+          <SettingsDropdown
+            debugMode={debugMode}
+            onDebugModeChange={setDebugMode}
+            onNewChat={handleNewChat}
+          />
         </div>
       </div>
       
