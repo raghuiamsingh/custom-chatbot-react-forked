@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import MessageRenderer from './MessageRenderer';
 import SuggestedQuestions from './SuggestedQuestions';
-import { type Message } from '../types';
+import { type Message, type SidebarContent } from '../types';
 
 interface ChatWindowProps {
   messages: Message[];
   onButtonClick?: (value: string) => void;
   onQuestionClick?: (question: string) => void;
+  onViewRecommendations?: (content: SidebarContent) => void;
   showInitialSuggestions?: boolean;
 }
 
@@ -14,6 +15,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   messages, 
   onButtonClick, 
   onQuestionClick, 
+  onViewRecommendations,
   showInitialSuggestions = false
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -47,6 +49,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               messageIndex={index}
               onButtonClick={onButtonClick}
               onQuestionClick={onQuestionClick}
+              onViewRecommendations={onViewRecommendations}
             />
           ))
         )}

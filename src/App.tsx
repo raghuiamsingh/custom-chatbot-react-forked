@@ -4,7 +4,8 @@ import InputBar from './components/InputBar';
 import SettingsDropdown from './components/SettingsDropdown';
 import ThemeToggle from './components/ThemeToggle';
 import SuggestedQuestionsAction from './components/SuggestedQuestionsAction';
-import { type Message } from './types';
+import Sidebar from './components/Sidebar';
+import { type Message, type SidebarContent } from './types';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -12,6 +13,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialSuggestions, setShowInitialSuggestions] = useState(true);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [sidebarContent, setSidebarContent] = useState<SidebarContent | null>(null);
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -115,6 +117,15 @@ function App() {
   const handleNewChat = () => {
     setMessages([]);
     setShowInitialSuggestions(true);
+    setSidebarContent(null); // Clear sidebar when starting new chat
+  };
+
+  const handleViewRecommendations = (content: SidebarContent) => {
+    setSidebarContent(content);
+  };
+
+  const handleCloseSidebar = () => {
+    setSidebarContent(null);
   };
 
   const handleRefreshSuggestions = async () => {
@@ -225,6 +236,7 @@ function App() {
         messages={messages} 
         onButtonClick={handleButtonClick}
         onQuestionClick={sendMessage}
+        onViewRecommendations={handleViewRecommendations}
         showInitialSuggestions={showInitialSuggestions}
       />
       
@@ -246,6 +258,13 @@ function App() {
       <InputBar 
         onSendMessage={sendMessage} 
         disabled={isLoading}
+      />
+
+      {/* Sidebar */}
+      <Sidebar
+        isOpen={sidebarContent !== null}
+        onClose={handleCloseSidebar}
+        content={sidebarContent}
       />
     </div>
   );

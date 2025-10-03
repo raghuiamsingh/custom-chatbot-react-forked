@@ -4,7 +4,8 @@ import ButtonGroup from './ButtonGroup';
 import ProductCard from './ProductCard';
 import TypingIndicator from './TypingIndicator';
 import SuggestedQuestions from './SuggestedQuestions';
-import { type Message } from '../types';
+import InlineCTA from './InlineCTA';
+import { type Message, type SidebarContent } from '../types';
 
 interface MessageRendererProps {
   message: Message;
@@ -12,9 +13,10 @@ interface MessageRendererProps {
   messageIndex: number;
   onButtonClick?: (value: string) => void;
   onQuestionClick?: (question: string) => void;
+  onViewRecommendations?: (content: SidebarContent) => void;
 }
 
-const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, messageIndex, onButtonClick, onQuestionClick }) => {
+const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, messageIndex, onButtonClick, onQuestionClick, onViewRecommendations }) => {
   const isUser = message.role === 'user';
   
   // Group consecutive product messages for grid layout
@@ -76,19 +78,25 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, me
               </div>
             )}
             
-            {message.type === 'product' && isFirstProduct && (
+            {message.type === 'product' && isFirstProduct && onViewRecommendations && (
               <div className="px-4 py-3">
-                <div className={`grid gap-4 ${
-                  consecutiveProducts.length === 1 
-                    ? 'grid-cols-1 justify-center' 
-                    : consecutiveProducts.length === 2 
-                      ? 'grid-cols-1 md:grid-cols-2' 
-                      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-                }`}>
-                  {consecutiveProducts.map((productMessage, index) => (
-                    <ProductCard key={productMessage.id || index} {...productMessage.content} />
-                  ))}
-                </div>
+                <InlineCTA
+                  count={consecutiveProducts.length}
+                  type="supplement"
+                  onViewRecommendations={() => {
+                    const sidebarContent: SidebarContent = {
+                      title: "Recommended Supplements",
+                      products: consecutiveProducts.map(productMessage => ({
+                        sku: productMessage.content.sku,
+                        productId: productMessage.content.productId,
+                        title: productMessage.content.title,
+                        image: productMessage.content.image,
+                        url: productMessage.content.url
+                      }))
+                    };
+                    onViewRecommendations(sidebarContent);
+                  }}
+                />
               </div>
             )}
             
