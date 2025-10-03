@@ -10,7 +10,7 @@ interface CardProps {
 const Card: React.FC<CardProps> = ({ title, description, image, onClick }) => {
   return (
     <div
-      className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ease-in-out ${
+      className={`bg-white dark:bg-gray-800 rounded-xl shadow-soft-sm dark:shadow-dark-sm hover:shadow-soft-md dark:hover:shadow-dark-md transition-shadow duration-200 ease-in-out ${
         onClick ? 'cursor-pointer hover:scale-105' : ''
       }`}
       onClick={onClick}
