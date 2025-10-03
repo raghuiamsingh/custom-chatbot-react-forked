@@ -88,16 +88,16 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex justify-between items-center">
+    <div className="flex flex-col h-screen bg-gray-50 font-sans">
+      <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        <div className="flex justify-between items-center max-w-4xl mx-auto">
           <h1 className="text-xl font-semibold text-gray-800">ChatBot</h1>
           <label className="flex items-center space-x-2 text-sm">
             <input
               type="checkbox"
               checked={debugMode}
               onChange={(e) => setDebugMode(e.target.checked)}
-              className="rounded border-gray-300"
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <span className="text-gray-600">
               🔍 Debug Mode

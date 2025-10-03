@@ -19,21 +19,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onButtonClick }) => {
   }, [messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      {messages.length === 0 ? (
-        <div className="flex items-center justify-center h-full text-gray-500">
-          <p>Start a conversation by typing a message below.</p>
-        </div>
-      ) : (
-        messages.map((message, index) => (
-          <MessageRenderer
-            key={index}
-            message={message}
-            onButtonClick={onButtonClick}
-          />
-        ))
-      )}
-      <div ref={messagesEndRef} />
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <p className="text-base">Start a conversation by typing a message below.</p>
+          </div>
+        ) : (
+          messages.map((message, index) => (
+            <MessageRenderer
+              key={index}
+              message={message}
+              onButtonClick={onButtonClick}
+            />
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
     </div>
   );
 };
