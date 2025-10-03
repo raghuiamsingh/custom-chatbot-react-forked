@@ -10,7 +10,7 @@ interface CardProps {
 const Card: React.FC<CardProps> = ({ title, description, image, onClick }) => {
   return (
     <div
-      className={`bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-4 max-w-sm ${
+      className={`border rounded-xl shadow-sm p-4 max-w-sm ${
         onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
       }`}
       onClick={onClick}

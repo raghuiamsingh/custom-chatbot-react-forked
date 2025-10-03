@@ -11,10 +11,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ role, text }) => {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
       <div
-        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+        className={`p-3 max-w-md ${
           isUser
-            ? 'bg-blue-500 text-white'
-            : 'bg-gray-200 text-gray-800'
+            ? 'bg-blue-500 text-white rounded-lg self-end'
+            : 'bg-white border rounded-lg self-start'
         }`}
       >
         <p className="text-sm whitespace-pre-wrap">{text}</p>

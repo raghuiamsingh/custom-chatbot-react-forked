@@ -24,7 +24,7 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = false }) 
   };
 
   return (
-    <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+    <div className="border-t bg-white p-2">
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           type="text"

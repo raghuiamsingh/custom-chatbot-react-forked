@@ -16,7 +16,7 @@ function App() {
       id: generateId(),
       role: 'user',
       type: 'text',
-      content: content
+      content: { text: content }
     };
     
     setMessages(prev => [...prev, userMessage]);
@@ -88,7 +88,7 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200 p-4">
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-semibold text-gray-800">ChatBot</h1>
