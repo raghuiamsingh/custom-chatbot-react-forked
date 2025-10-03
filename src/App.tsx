@@ -3,6 +3,7 @@ import ChatWindow from './components/ChatWindow';
 import InputBar from './components/InputBar';
 import SettingsDropdown from './components/SettingsDropdown';
 import ThemeToggle from './components/ThemeToggle';
+import SuggestedQuestionsAction from './components/SuggestedQuestionsAction';
 import { type Message } from './types';
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
   const [debugMode, setDebugMode] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialSuggestions, setShowInitialSuggestions] = useState(true);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -115,6 +117,75 @@ function App() {
     setShowInitialSuggestions(true);
   };
 
+  const handleRefreshSuggestions = async () => {
+    if (messages.length === 0) return;
+    
+    setIsLoadingSuggestions(true);
+    try {
+      // Send a request to get fresh suggestions
+      const response = await fetch('http://localhost:3001/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: "Please provide some suggested follow-up questions" }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to refresh suggestions');
+      }
+
+      const data = await response.json();
+      
+      // Log raw BotDojo response to browser console if available and debug mode is enabled
+      if (data.debug && debugMode) {
+        console.group('🔍 BotDojo Debug Info (Suggestions Refresh)');
+        console.log('📡 Endpoint:', data.debug.endpoint);
+        console.log('📤 Request Body:', data.debug.requestBody);
+        console.log('📥 Raw BotDojo Response:', data.debug.rawBotDojoResponse);
+        console.groupEnd();
+      }
+
+      // Update the last bot message with new suggestions
+      if (data.messages && Array.isArray(data.messages)) {
+        setMessages(prev => {
+          const newMessages = [...prev];
+          // Find the last bot message index
+          let lastBotMessageIndex = -1;
+          for (let i = newMessages.length - 1; i >= 0; i--) {
+            if (newMessages[i].role === 'bot') {
+              lastBotMessageIndex = i;
+              break;
+            }
+          }
+          
+          if (lastBotMessageIndex !== -1) {
+            // Find suggestions from the new response
+            const suggestionsMessage = data.messages.find((msg: any) => msg.suggestedQuestions);
+            if (suggestionsMessage) {
+              newMessages[lastBotMessageIndex] = {
+                ...newMessages[lastBotMessageIndex],
+                suggestedQuestions: suggestionsMessage.suggestedQuestions
+              };
+            }
+          }
+          
+          return newMessages;
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing suggestions:', error);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  // Get suggested questions from the last bot message
+  const getSuggestedQuestions = () => {
+    const lastBotMessage = [...messages].reverse().find(msg => msg.role === 'bot');
+    return lastBotMessage?.suggestedQuestions || [];
+  };
+
       return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 font-sans transition-colors duration-300 ease-in-out">
           <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 shadow-sm transition-colors duration-300 ease-in-out">
@@ -137,6 +208,20 @@ function App() {
         onQuestionClick={sendMessage}
         showInitialSuggestions={showInitialSuggestions}
       />
+      
+      {/* Suggested Questions Action - only show after conversation starts */}
+      {messages.length > 0 && (
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-3 transition-colors duration-300 ease-in-out">
+          <div className="max-w-4xl mx-auto flex justify-center">
+            <SuggestedQuestionsAction
+              onQuestionClick={sendMessage}
+              onRefresh={handleRefreshSuggestions}
+              questions={getSuggestedQuestions()}
+              isLoading={isLoadingSuggestions}
+            />
+          </div>
+        </div>
+      )}
       
       <InputBar 
         onSendMessage={sendMessage} 
