@@ -207,6 +207,7 @@ app.post('/chat', async (req, res) => {
     };
 
     console.log('Calling BotDojo API:', botdojoEndpoint);
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
     // Call BotDojo API
     const botdojoResponse = await fetch(botdojoEndpoint, {
@@ -226,11 +227,28 @@ app.post('/chat', async (req, res) => {
 
     const botdojoData = await botdojoResponse.json();
 
+    // Log the raw BotDojo response
+    console.log('\n=== RAW BOTDOJO RESPONSE ===');
+    console.log(JSON.stringify(botdojoData, null, 2));
+    console.log('=== END RAW RESPONSE ===\n');
+
     // Normalize the response
     const messages = normalizeBotDojoResponse(botdojoData);
 
-    // Return normalized response
-    res.json({ messages });
+    // Log the normalized messages
+    console.log('\n=== NORMALIZED MESSAGES ===');
+    console.log(JSON.stringify(messages, null, 2));
+    console.log('=== END NORMALIZED MESSAGES ===\n');
+
+    // Return normalized response with raw data for browser console
+    res.json({ 
+      messages,
+      debug: {
+        rawBotDojoResponse: botdojoData,
+        endpoint: botdojoEndpoint,
+        requestBody: requestBody
+      }
+    });
 
   } catch (error) {
     console.error('Error processing chat request:', error);
@@ -251,11 +269,74 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint to see raw BotDojo response
+app.post('/debug-botdojo', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    console.log('=== DEBUG MODE: Raw BotDojo Response ===');
+    console.log('Message:', message);
+
+    // Construct BotDojo endpoint
+    const botdojoEndpoint = `${BOTDOJO_BASE_URL}/accounts/${BOTDOJO_ACCOUNT_ID}/projects/${BOTDOJO_PROJECT_ID}/flows/${BOTDOJO_FLOW_ID}/run`;
+    
+    const requestBody = {
+      body: {
+        text_input: message
+      }
+    };
+
+    console.log('Endpoint:', botdojoEndpoint);
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+    // Call BotDojo API
+    const botdojoResponse = await fetch(botdojoEndpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': BOTDOJO_API_KEY,
+        'X-API-Key': BOTDOJO_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!botdojoResponse.ok) {
+      const errorText = await botdojoResponse.text();
+      return res.status(botdojoResponse.status).json({
+        error: `BotDojo API error: ${botdojoResponse.status} ${botdojoResponse.statusText}`,
+        details: errorText
+      });
+    }
+
+    const botdojoData = await botdojoResponse.json();
+
+    // Return the raw response for inspection
+    res.json({
+      success: true,
+      rawResponse: botdojoData,
+      endpoint: botdojoEndpoint,
+      requestBody: requestBody
+    });
+
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({
+      error: 'Debug request failed',
+      details: error.message
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Chat endpoint: http://localhost:${PORT}/chat`);
+  console.log(`Debug endpoint: http://localhost:${PORT}/debug-botdojo`);
   console.log('Make sure to set BOTDOJO_API_KEY, BOTDOJO_BASE_URL, and BOTDOJO_FLOW_ID environment variables');
 });
 

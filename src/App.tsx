@@ -5,6 +5,7 @@ import { type Message } from './types';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [debugMode, setDebugMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -37,6 +38,15 @@ function App() {
 
       const data = await response.json();
       
+      // Log raw BotDojo response to browser console if available and debug mode is enabled
+      if (data.debug && debugMode) {
+        console.group('🔍 BotDojo Debug Info');
+        console.log('📡 Endpoint:', data.debug.endpoint);
+        console.log('📤 Request Body:', data.debug.requestBody);
+        console.log('📥 Raw BotDojo Response:', data.debug.rawBotDojoResponse);
+        console.groupEnd();
+      }
+
       // Handle multiple messages from server response
       if (data.messages && Array.isArray(data.messages)) {
         const botMessages: Message[] = data.messages.map((msg: any) => ({
@@ -80,7 +90,20 @@ function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <div className="bg-white border-b border-gray-200 p-4">
-        <h1 className="text-xl font-semibold text-gray-800">ChatBot</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-semibold text-gray-800">ChatBot</h1>
+          <label className="flex items-center space-x-2 text-sm">
+            <input
+              type="checkbox"
+              checked={debugMode}
+              onChange={(e) => setDebugMode(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            <span className="text-gray-600">
+              🔍 Debug Mode
+            </span>
+          </label>
+        </div>
       </div>
       
       <ChatWindow 
