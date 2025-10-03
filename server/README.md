@@ -21,7 +21,8 @@ Express.js server that handles chat requests and integrates with BotDojo API.
    Or set environment variables directly:
    ```bash
    export BOTDOJO_API_KEY="your-api-key-here"
-   export BOTDOJO_ENDPOINT="https://api.botdojo.com/v1/chat"
+   export BOTDOJO_BASE_URL="https://api.botdojo.com/v1/flows"
+   export BOTDOJO_FLOW_ID="your-flow-id-here"
    export PORT=3001
    ```
 

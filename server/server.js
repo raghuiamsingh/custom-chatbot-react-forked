@@ -14,53 +14,68 @@ app.use(cors({
 app.use(express.json());
 
 // BotDojo API configuration
-const BOTDOJO_API_KEY = process.env.BOTDOJO_API_KEY || 'your-api-key-here';
-const BOTDOJO_ENDPOINT = process.env.BOTDOJO_ENDPOINT || 'https://api.botdojo.com/v1/chat';
+const BOTDOJO_API_KEY = process.env.BOTDOJO_API_KEY;
+const BOTDOJO_BASE_URL = process.env.BOTDOJO_BASE_URL;
+const BOTDOJO_FLOW_ID = process.env.BOTDOJO_FLOW_ID;
 
 // Function to normalize BotDojo response into our message format
 function normalizeBotDojoResponse(botdojoResponse) {
   const messages = [];
   
-  // Handle different response structures from BotDojo
-  if (botdojoResponse.messages && Array.isArray(botdojoResponse.messages)) {
-    // If BotDojo returns an array of messages
-    botdojoResponse.messages.forEach(msg => {
-      messages.push({
-        role: 'bot',
-        type: msg.type || 'text',
-        content: msg.content || msg.text || msg.message
-      });
+  // Handle BotDojo response structure
+  if (botdojoResponse.output && Array.isArray(botdojoResponse.output)) {
+    // If BotDojo returns an array of outputs
+    botdojoResponse.output.forEach(output => {
+      if (output.type === 'text') {
+        messages.push({
+          role: 'bot',
+          type: 'text',
+          content: { text: output.text || output.content || '' }
+        });
+      } else if (output.type === 'buttons') {
+        messages.push({
+          role: 'bot',
+          type: 'buttons',
+          content: { options: output.options || output.buttons || [] }
+        });
+      } else if (output.type === 'card') {
+        messages.push({
+          role: 'bot',
+          type: 'card',
+          content: {
+            title: output.title || '',
+            description: output.description || '',
+            image: output.image
+          }
+        });
+      } else if (output.type === 'list') {
+        messages.push({
+          role: 'bot',
+          type: 'list',
+          content: { list: output.list || output.items || [] }
+        });
+      } else {
+        // Default to text for unknown types
+        messages.push({
+          role: 'bot',
+          type: 'text',
+          content: { text: JSON.stringify(output) }
+        });
+      }
     });
   } else if (botdojoResponse.text || botdojoResponse.message) {
     // If BotDojo returns a simple text response
     messages.push({
       role: 'bot',
       type: 'text',
-      content: botdojoResponse.text || botdojoResponse.message
+      content: { text: botdojoResponse.text || botdojoResponse.message }
     });
-  } else if (botdojoResponse.response) {
-    // If BotDojo wraps response in a 'response' field
-    if (Array.isArray(botdojoResponse.response)) {
-      botdojoResponse.response.forEach(msg => {
-        messages.push({
-          role: 'bot',
-          type: msg.type || 'text',
-          content: msg.content || msg.text || msg.message
-        });
-      });
-    } else {
-      messages.push({
-        role: 'bot',
-        type: 'text',
-        content: botdojoResponse.response
-      });
-    }
   } else {
     // Fallback for unknown response structure
     messages.push({
       role: 'bot',
       type: 'text',
-      content: JSON.stringify(botdojoResponse)
+      content: { text: 'Sorry, I could not process your message.' }
     });
   }
   
@@ -80,17 +95,24 @@ app.post('/chat', async (req, res) => {
 
     console.log('Received message:', message);
 
+    // Validate required environment variables
+    if (!BOTDOJO_API_KEY || !BOTDOJO_BASE_URL || !BOTDOJO_FLOW_ID) {
+      throw new Error('Missing BotDojo configuration. Please set BOTDOJO_API_KEY, BOTDOJO_BASE_URL, and BOTDOJO_FLOW_ID');
+    }
+
+    // Construct BotDojo endpoint
+    const botdojoEndpoint = `${BOTDOJO_BASE_URL}/${BOTDOJO_FLOW_ID}/run`;
+
     // Call BotDojo API
-    const botdojoResponse = await fetch(BOTDOJO_ENDPOINT, {
+    const botdojoResponse = await fetch(botdojoEndpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${BOTDOJO_API_KEY}`,
-        // Add other headers as required by BotDojo API
+        'Authorization': BOTDOJO_API_KEY,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        message: message,
-        // Add other parameters as required by BotDojo API
+        input: message,
+        stream: false
       })
     });
 
@@ -115,7 +137,7 @@ app.post('/chat', async (req, res) => {
       messages: [{
         role: 'bot',
         type: 'text',
-        content: `Sorry, there was an error processing your message: ${error.message}`
+        content: { text: 'Error contacting BotDojo.' }
       }]
     });
   }
@@ -131,7 +153,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Chat endpoint: http://localhost:${PORT}/chat`);
-  console.log('Make sure to set BOTDOJO_API_KEY and BOTDOJO_ENDPOINT environment variables');
+  console.log('Make sure to set BOTDOJO_API_KEY, BOTDOJO_BASE_URL, and BOTDOJO_FLOW_ID environment variables');
 });
 
 module.exports = app;
