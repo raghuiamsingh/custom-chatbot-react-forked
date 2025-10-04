@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **JSON Parsing for BotDojo Responses**: Fixed issue where raw JSON was appearing in chat instead of parsed text and suggested questions
+  - Made outputStep and fallback response paths mutually exclusive
+  - Added condition to prevent fallback path from overriding correctly parsed content
+  - Bot responses now properly extract `text` and `suggestedQuestions` from JSON format
+  - Suggested questions now render as pill-style buttons under bot messages
+
 ### Added
 - **Contextual Sidebar (Companion Panel)** for structured responses:
   - Sidebar component with smooth slide-in/out animations
