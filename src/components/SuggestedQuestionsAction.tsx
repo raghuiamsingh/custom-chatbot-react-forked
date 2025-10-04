@@ -274,7 +274,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            className="fixed bottom-24 left-1/2 transform -translate-x-1/2 w-full max-w-4xl px-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50"
+            className="fixed bottom-24 left-6 right-6 max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50"
             variants={panelVariants}
             initial="hidden"
             animate="visible"
