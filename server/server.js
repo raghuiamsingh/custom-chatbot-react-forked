@@ -429,7 +429,7 @@ function normalizeBotDojoResponse(botdojoResponse) {
       }
     }
     
-  } else if (botdojoResponse.response && botdojoResponse.response.text_output) {
+  } else if (botdojoResponse.response && botdojoResponse.response.text_output && !botdojoResponse.steps) {
     // Fallback: Extract the main text response
     let textContent = botdojoResponse.response.text_output;
     let suggestedQuestions = [];
@@ -459,8 +459,10 @@ function normalizeBotDojoResponse(botdojoResponse) {
     
     // Canvas data is now parsed into structured content, not individual messages
     
-    // Clean up canvas references from text content
-    textContent = cleanTextContent(textContent);
+    // Clean up canvas references from text content (only if not JSON parsed)
+    if (suggestedQuestions.length === 0) { // Only clean if JSON parsing didn't yield suggestions
+      textContent = cleanTextContent(textContent);
+    }
     
     if (textContent) {
       const message = {
@@ -493,41 +495,68 @@ function normalizeBotDojoResponse(botdojoResponse) {
     }
   } else if (botdojoResponse.steps && Array.isArray(botdojoResponse.steps)) {
     // Handle steps array - look for the final output step
+    console.log('=== STEPS ARRAY FOUND ===');
+    console.log('Number of steps:', botdojoResponse.steps.length);
+    console.log('Step labels:', botdojoResponse.steps.map(s => s.stepLabel));
+    
     const outputStep = botdojoResponse.steps.find(step => 
       step.stepLabel === 'Output' && step.content
     );
+    
+    console.log('=== OUTPUT STEP SEARCH ===');
+    console.log('Output step found:', !!outputStep);
+    if (outputStep) {
+      console.log('Output step content type:', typeof outputStep.content);
+      console.log('Output step content length:', outputStep.content.length);
+      console.log('Output step content preview:', outputStep.content.substring(0, 100));
+    }
     
     if (outputStep && outputStep.content) {
       let textContent = outputStep.content;
       let suggestedQuestions = [];
       
       // Try to parse JSON format with text and suggestedQuestions
+      console.log('=== ATTEMPTING JSON PARSING ===');
+      console.log('textContent type:', typeof textContent);
+      console.log('textContent length:', textContent.length);
+      console.log('textContent preview:', textContent.substring(0, 100));
+      
       try {
         const parsedContent = JSON.parse(textContent);
-        console.log('=== JSON PARSING DEBUG ===');
+        console.log('=== JSON PARSING SUCCESS ===');
         console.log('Original textContent:', textContent);
         console.log('Parsed content:', parsedContent);
         console.log('Has text field:', !!parsedContent.text);
         console.log('Text field type:', typeof parsedContent.text);
         console.log('Has suggestedQuestions:', !!parsedContent.suggestedQuestions);
         console.log('SuggestedQuestions type:', typeof parsedContent.suggestedQuestions);
-        console.log('=== END JSON PARSING DEBUG ===');
+        console.log('=== END JSON PARSING SUCCESS ===');
         
         if (parsedContent.text && typeof parsedContent.text === 'string') {
+          console.log('=== UPDATING TEXT CONTENT ===');
+          console.log('Old textContent:', textContent);
           textContent = parsedContent.text;
+          console.log('New textContent:', textContent);
           if (parsedContent.suggestedQuestions && Array.isArray(parsedContent.suggestedQuestions)) {
             suggestedQuestions = parsedContent.suggestedQuestions;
+            console.log('Updated suggestedQuestions:', suggestedQuestions);
           }
+          console.log('=== END UPDATING TEXT CONTENT ===');
         }
       } catch (e) {
-        console.log('JSON parsing failed:', e.message);
+        console.log('=== JSON PARSING FAILED ===');
+        console.log('Error:', e.message);
+        console.log('textContent that failed to parse:', textContent);
+        console.log('=== END JSON PARSING FAILED ===');
         // Not JSON, continue with original text content
       }
       
       // Canvas data is now parsed into structured content, not individual messages
       
-      // Clean up canvas references from text content
-      textContent = cleanTextContent(textContent);
+      // Clean up canvas references from text content (only if not JSON parsed)
+      if (suggestedQuestions.length === 0) {
+        textContent = cleanTextContent(textContent);
+      }
       
       if (textContent) {
         const message = {
