@@ -13,6 +13,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Serve static files from the public directory
+app.use(express.static('public'));
+
 // BotDojo API configuration - using correct values from working curl command
 const BOTDOJO_API_KEY = 'd79fa8f7-d776-431e-8fbc-56f47deb79d5';
 const BOTDOJO_ACCOUNT_ID = 'afa02f70-4182-11f0-a4dd-cb9f7db4f88a';
