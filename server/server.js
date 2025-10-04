@@ -382,6 +382,7 @@ function normalizeBotDojoResponse(botdojoResponse) {
     // Add text message if there's content
     if (textContent) {
       const textMessage = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: 'bot',
         type: 'text',
         content: { text: textContent }
@@ -401,6 +402,7 @@ function normalizeBotDojoResponse(botdojoResponse) {
     const buttonOptions = ['Energy', 'Immunity', 'Vitamins', 'Minerals', 'Performance', 'Recovery'];
     if (textContent && textContent.toLowerCase().includes('specific purpose')) {
       messages.push({
+        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: 'bot',
         type: 'buttons',
         content: { 

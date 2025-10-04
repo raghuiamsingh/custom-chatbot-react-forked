@@ -73,10 +73,11 @@ function App() {
         
         if (data.messages && Array.isArray(data.messages)) {
           const botMessages: Message[] = data.messages.map((msg: any) => ({
-            id: generateId(),
+            id: msg.id || generateId(),
             role: msg.role || 'bot',
             type: msg.type || 'text',
-            content: msg.content || 'Sorry, I could not process your message.'
+            content: msg.content || 'Sorry, I could not process your message.',
+            structured: msg.structured || undefined
           }));
           
           return [...messagesWithoutTyping, ...botMessages];
