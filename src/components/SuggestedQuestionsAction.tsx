@@ -274,7 +274,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            className="fixed bottom-20 left-6 right-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50 max-w-4xl mx-auto"
+            className="fixed bottom-24 left-6 right-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50"
             variants={panelVariants}
             initial="hidden"
             animate="visible"
@@ -320,7 +320,7 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
                 {/* Questions Grid with Swipe Gestures */}
                 <div className="relative overflow-hidden">
                   <div 
-                    className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto"
+                    className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
@@ -330,10 +330,8 @@ const SuggestedQuestionsAction: React.FC<SuggestedQuestionsActionProps> = ({
                         <motion.button
                           key={`${currentSetIndex}-${index}`}
                           onClick={() => handleQuestionClick(question)}
-                          className="min-h-[120px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center p-4"
+                          className="min-h-[120px] min-w-[200px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center p-4"
                           variants={tileVariants}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
                           initial="hidden"
                           animate="visible"
                         >
