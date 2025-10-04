@@ -320,7 +320,7 @@ function App() {
             <div className="flex justify-between items-center max-w-4xl mx-auto">
               <div className="flex items-center gap-3">
                 <img 
-                  src="/logo.png" 
+                  src="/logo.svg" 
                   alt="GetHealthy Assistant Logo" 
                   className="w-8 h-8"
                 />
