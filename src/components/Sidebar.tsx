@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ProductCard from './ProductCard';
+import SidebarContentRenderer from './SidebarContentRenderer';
 import { type Message } from '../types';
 
 interface SidebarProps {
@@ -13,27 +13,34 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, messageId, messages }) => {
   // Find the message with the given ID and extract structured content
   const message = messageId ? messages.find(msg => msg.id === messageId) : null;
-  const structuredContent = message?.structured || [];
+  const structuredContent = message?.structured;
   
-  // Generate title based on message type or content
+  // Generate title based on structured content type
   const getTitle = () => {
-    if (!message) return 'Recommendations';
+    if (!structuredContent) return 'Details';
     
-    // Check if the message content mentions specific types
-    const contentText = message.content?.text || '';
-    if (contentText.toLowerCase().includes('sleep')) return 'Sleep Supplements';
-    if (contentText.toLowerCase().includes('energy') || contentText.toLowerCase().includes('focus')) return 'Energy & Focus Supplements';
-    if (contentText.toLowerCase().includes('immune')) return 'Immune Support Supplements';
-    if (contentText.toLowerCase().includes('recovery')) return 'Recovery Supplements';
-    if (contentText.toLowerCase().includes('stress')) return 'Stress Management Supplements';
-    
-    return 'Recommended Supplements';
+    switch (structuredContent.type) {
+      case 'product':
+        return 'Recommended Supplements';
+      case 'guide':
+        return 'Guide';
+      case 'faq':
+        return 'Frequently Asked Questions';
+      case 'labResult':
+        return 'Lab Results';
+      case 'image':
+        return 'Images';
+      case 'linkList':
+        return 'Resources';
+      default:
+        return 'Details';
+    }
   };
 
   const title = getTitle();
   return (
     <AnimatePresence>
-      {isOpen && structuredContent.length > 0 && (
+      {isOpen && structuredContent && structuredContent.data.length > 0 && (
         <>
           {/* Mobile Overlay */}
           <motion.div
@@ -81,18 +88,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, messageId, messages 
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4">
-              <div className="space-y-4">
-                {structuredContent.map((product, index) => (
-                  <motion.div
-                    key={`${product.sku}-${index}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <ProductCard {...product} />
-                  </motion.div>
-                ))}
-              </div>
+              <SidebarContentRenderer 
+                type={structuredContent.type} 
+                data={structuredContent.data} 
+              />
             </div>
           </motion.div>
         </>

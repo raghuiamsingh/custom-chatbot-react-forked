@@ -390,7 +390,10 @@ function normalizeBotDojoResponse(botdojoResponse) {
       
       // Add structured content if we have products
       if (allStructuredContent.length > 0) {
-        textMessage.structured = allStructuredContent;
+        textMessage.structured = {
+          type: 'product',
+          data: allStructuredContent
+        };
       }
       
       messages.push(textMessage);

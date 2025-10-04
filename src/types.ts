@@ -4,13 +4,10 @@ export type Message = {
   type: "text" | "buttons" | "card" | "list" | "typing" | "canvas" | "product";
   content: any; // Can be string, { text: string }, { options: string[] }, { title: string, description: string, image?: string }, { list: string[] }, { url: string, display: string, height: number }, { sku: string, productId: string, title?: string, image?: string, url: string }, {}
   suggestedQuestions?: string[]; // Optional array of suggested follow-up questions
-  structured?: Array<{
-    sku: string;
-    productId: number;
-    title: string;
-    image: string;
-    url: string;
-  }>; // Optional structured content for sidebar (products, etc.)
+  structured?: {
+    type: 'product' | 'guide' | 'faq' | 'labResult' | 'image' | 'linkList';
+    data: any[];
+  }; // Optional structured content for sidebar with content type
 };
 
 export type SidebarContent = {

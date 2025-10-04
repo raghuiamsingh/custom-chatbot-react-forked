@@ -3,32 +3,64 @@ import { motion } from 'framer-motion';
 
 interface InlineCTAProps {
   count: number;
-  type: 'product' | 'supplement' | 'recommendation';
+  contentType: 'product' | 'guide' | 'faq' | 'labResult' | 'image' | 'linkList';
   messageId: string;
   onViewRecommendations: (messageId: string) => void;
 }
 
-const InlineCTA: React.FC<InlineCTAProps> = ({ count, type, messageId, onViewRecommendations }) => {
+const InlineCTA: React.FC<InlineCTAProps> = ({ count, contentType, messageId, onViewRecommendations }) => {
   const getTypeLabel = () => {
-    switch (type) {
+    switch (contentType) {
       case 'product':
-        return 'products';
-      case 'supplement':
         return 'supplements';
-      case 'recommendation':
-        return 'recommendations';
+      case 'guide':
+        return 'guide steps';
+      case 'faq':
+        return 'questions';
+      case 'labResult':
+        return 'lab results';
+      case 'image':
+        return 'images';
+      case 'linkList':
+        return 'resources';
       default:
         return 'items';
     }
   };
 
-  const getIcon = () => {
-    switch (type) {
+  const getActionLabel = () => {
+    switch (contentType) {
       case 'product':
-      case 'supplement':
+        return 'View Recommendations';
+      case 'guide':
+        return 'View Guide';
+      case 'faq':
+        return 'View FAQ';
+      case 'labResult':
+        return 'View Lab Results';
+      case 'image':
+        return 'View Images';
+      case 'linkList':
+        return 'View Resources';
+      default:
+        return 'View Details';
+    }
+  };
+
+  const getIcon = () => {
+    switch (contentType) {
+      case 'product':
         return '💊';
-      case 'recommendation':
-        return '💡';
+      case 'guide':
+        return '📖';
+      case 'faq':
+        return '❓';
+      case 'labResult':
+        return '🧪';
+      case 'image':
+        return '🖼️';
+      case 'linkList':
+        return '🔗';
       default:
         return '💡';
     }
@@ -54,7 +86,7 @@ const InlineCTA: React.FC<InlineCTAProps> = ({ count, type, messageId, onViewRec
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          View Recommendations
+          {getActionLabel()}
         </motion.button>
       </div>
     </motion.div>

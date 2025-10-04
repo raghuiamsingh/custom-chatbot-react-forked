@@ -49,10 +49,10 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, messages, me
                   {message.content.text}
                 </div>
                 {/* Show CTA if structured content is available */}
-                {message.structured && message.structured.length > 0 && onViewRecommendations && (
+                {message.structured && message.structured.data.length > 0 && onViewRecommendations && (
                   <InlineCTA
-                    count={message.structured.length}
-                    type="supplement"
+                    count={message.structured.data.length}
+                    contentType={message.structured.type}
                     messageId={message.id}
                     onViewRecommendations={onViewRecommendations}
                   />
