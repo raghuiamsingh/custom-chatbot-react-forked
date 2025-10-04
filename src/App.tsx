@@ -345,7 +345,6 @@ function App() {
         onQuestionClick={sendMessage}
         onViewRecommendations={handleViewRecommendations}
         onRemoveSuggestions={handleRemoveSuggestions}
-        showInitialSuggestions={showInitialSuggestions}
       />
       
       {/* Suggested Questions Action - floating style */}

@@ -9,7 +9,6 @@ interface ChatWindowProps {
   onQuestionClick?: (question: string) => void;
   onViewRecommendations?: (messageId: string) => void;
   onRemoveSuggestions?: (messageId: string) => void;
-  showInitialSuggestions?: boolean;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ 
@@ -17,8 +16,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   onButtonClick, 
   onQuestionClick, 
   onViewRecommendations,
-  onRemoveSuggestions,
-  showInitialSuggestions = false
+  onRemoveSuggestions
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -32,19 +30,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      {/* Initial Suggested Questions Section - only show when no messages and enabled */}
-      {messages.length === 0 && showInitialSuggestions && onQuestionClick && (
-        <SuggestedQuestions onQuestionClick={onQuestionClick} />
-      )}
-      
       <div className="max-w-4xl mx-auto px-6 py-6">
         {messages.length === 0 ? (
           <div className="space-y-6">
             {/* Introduction Message */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="text-base leading-relaxed text-gray-800 dark:text-gray-100 transition-colors duration-300 ease-in-out">
+            <div className="px-4 py-3">
+              <div className="text-base leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap transition-colors duration-300 ease-in-out">
                 Hi, I'm your supplement discovery assistant. I can help you find the right products based on your goals, health concerns, or ingredient preferences. Whether you're curious about which supplements support sleep, stress relief, immune health, or energy, I'll guide you toward options that match your needs.
-                <br /><br />
+
                 You can ask about specific conditions, ingredients, or general wellness goals — and I'll provide tailored product recommendations.
               </div>
             </div>
