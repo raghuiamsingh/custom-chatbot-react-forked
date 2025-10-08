@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const cors = require('cors');
 
@@ -13,7 +14,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Serve static files from the public directory
+// Serve static files from the built frontend
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// Serve static files from the public directory (fallback)
 app.use(express.static('public'));
 
 // BotDojo API configuration - read from environment variables
@@ -1302,6 +1306,11 @@ app.post('/test-structured', (req, res) => {
   }
   
   res.json({ messages: [testMessage] });
+});
+
+// Catch-all handler: send back React's index.html file for client-side routing
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Start server
