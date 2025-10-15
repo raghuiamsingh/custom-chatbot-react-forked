@@ -1,33 +1,89 @@
-# BotDojo Custom Chat
+# Custom Chatbot React Application
 
-A modern React-based chat application built with Vite, TypeScript, and TailwindCSS. Features a ChatGPT-like interface with support for text messages, quick reply buttons, and rich card components.
+A modern, full-stack chatbot application built with React, TypeScript, and Node.js that integrates with BotDojo for supplement discovery and health recommendations.
 
-## Features
+## 🚀 Features
 
-- 🚀 **Modern Stack**: Built with React 18, TypeScript, and Vite
-- 🎨 **Beautiful UI**: Styled with TailwindCSS for a clean, modern look
-- 💬 **Chat Interface**: ChatGPT-like layout with scrollable messages
-- 🔘 **Interactive Elements**: Support for quick reply buttons and rich cards
-- 📱 **Responsive Design**: Works seamlessly on desktop and mobile
-- ⚡ **Fast Development**: Hot module replacement with Vite
-- 🛡️ **Type Safety**: Full TypeScript support for better development experience
-- 🎯 **Contextual Sidebar**: Companion panel for structured responses with smooth animations
-- 💡 **Inline CTAs**: Clean call-to-action buttons for product recommendations
-- 🎭 **Dark Mode**: Light/dark theme toggle with system preference detection
+### Core Functionality
+- **Real-time Chat**: Interactive conversation with AI assistant
+- **Product Recommendations**: Structured product suggestions with images and descriptions
+- **Suggested Questions**: Dynamic follow-up questions based on context
+- **Structured Content**: Support for guides, FAQs, lab results, images, and link lists
+- **Sidebar Navigation**: Detailed view of recommendations and structured content
 
-## Installation
+### Technical Features
+- **TypeScript**: Full type safety across frontend and backend
+- **Modular Architecture**: Clean separation of concerns with services, utilities, and components
+- **Error Handling**: Comprehensive error boundaries and logging
+- **Input Validation**: Sanitization and validation for all user inputs
+- **Caching**: Intelligent caching of BotDojo responses for improved performance
+- **Rate Limiting**: Protection against abuse and excessive requests
+- **Security**: Helmet.js security headers and CORS configuration
+- **Accessibility**: ARIA labels, keyboard navigation, and screen reader support
+- **Testing**: Unit tests for critical functions and API endpoints
+- **API Documentation**: OpenAPI/Swagger specification
+
+## 🏗️ Architecture
+
+### Frontend (React + TypeScript)
+```
+src/
+├── components/          # Reusable UI components
+├── contexts/            # React Context for state management
+├── types.ts            # TypeScript type definitions
+└── App.tsx             # Main application component
+```
+
+### Backend (Node.js + TypeScript)
+```
+server/
+├── src/
+│   ├── config/         # Environment and configuration
+│   ├── services/       # Business logic services
+│   ├── utils/          # Utility functions
+│   ├── types/          # TypeScript type definitions
+│   └── app.ts          # Express application setup
+├── docs/               # API documentation
+└── dist/               # Compiled JavaScript
+```
+
+## 🛠️ Setup and Installation
 
 ### Prerequisites
-
-- Node.js (version 16 or higher)
+- Node.js 18+ 
 - npm or yarn
+- BotDojo API credentials
 
-### Setup
+### Environment Variables
+Create a `.env` file in the server directory:
+
+```env
+# BotDojo Configuration
+BOTDOJO_API_KEY=your_api_key_here
+BOTDOJO_BASE_URL=https://api.botdojo.com
+BOTDOJO_ACCOUNT_ID=your_account_id
+BOTDOJO_PROJECT_ID=your_project_id
+BOTDOJO_FLOW_ID=your_flow_id
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# Cache Configuration
+CACHE_TTL=300
+CACHE_MAX_KEYS=1000
+
+# Media Configuration
+MEDIA_BASE=https://uat.gethealthy.store
+```
+
+### Installation
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd botdojo-custom-chat
+   cd custom-chatbot-react
    ```
 
 2. **Install frontend dependencies**
@@ -35,207 +91,252 @@ A modern React-based chat application built with Vite, TypeScript, and TailwindC
    npm install
    ```
 
-3. **Setup the backend server**
+3. **Install server dependencies**
    ```bash
    cd server
    npm install
    ```
 
-4. **Configure BotDojo API**
-   
-   The server is pre-configured with working BotDojo credentials. If you need to use different credentials, you can:
-   
-   - Set environment variables directly:
+4. **Build the frontend**
    ```bash
-   export BOTDOJO_API_KEY="your-api-key-here"
-   export BOTDOJO_BASE_URL="https://api.botdojo.com/api/v1"
-   export BOTDOJO_ACCOUNT_ID="your-account-id"
-   export BOTDOJO_PROJECT_ID="your-project-id"
-   export BOTDOJO_FLOW_ID="your-flow-id"
+   npm run build
    ```
-   
-   - Or modify the hardcoded values in `server/server.js`
 
-5. **Start the backend server**
+5. **Start the development server**
    ```bash
    cd server
-   npm start
-   ```
-
-6. **Start the frontend development server**
-   ```bash
    npm run dev
    ```
 
-7. **Open your browser**
-   Navigate to `http://localhost:5173` to see the application.
+## 🚀 Development
 
-## Usage
-
-### Basic Chat
-
-1. Type your message in the input field at the bottom
-2. Press Enter or click Send to send the message
-3. The message will be sent to the backend API endpoint `/chat`
-4. Bot responses will appear in the chat window
-
-### Message Types
-
-The application supports three types of messages:
-
-#### Text Messages
-Simple text bubbles with different styling for user and assistant messages.
-
-#### Button Groups
-Quick reply buttons that users can click to send predefined responses:
-```json
-{
-  "type": "buttons",
-  "content": "Choose an option:",
-  "buttons": [
-    { "text": "Option 1", "value": "option1" },
-    { "text": "Option 2", "value": "option2" }
-  ]
-}
-```
-
-#### Cards
-Rich content cards with images, titles, and descriptions:
-```json
-{
-  "type": "card",
-  "content": "Here's a product recommendation:",
-  "card": {
-    "title": "Product Name",
-    "description": "Product description",
-    "image": "https://example.com/image.jpg"
-  }
-}
-```
-
-## API Integration
-
-The application connects to a Node.js + Express server that integrates with the BotDojo API.
-
-### Backend Server
-
-The server (`server/server.js`) provides:
-
-- **POST /chat**: Accepts user messages and forwards them to BotDojo API
-- **GET /health**: Health check endpoint
-
-### Request Format
-```json
-{
-  "message": "User's message text"
-}
-```
-
-### Response Format
-```json
-{
-  "messages": [
-    {
-      "role": "bot",
-      "type": "text|buttons|card|list",
-      "content": "Response content"
-    }
-  ]
-}
-```
-
-### BotDojo Integration
-
-The server normalizes BotDojo API responses into the expected format. The application is pre-configured with working BotDojo credentials for a supplement recommendation flow.
-
-**Current Configuration:**
-- ✅ **API Key**: Pre-configured and working
-- ✅ **Endpoint**: `https://api.botdojo.com/api/v1/accounts/{account_id}/projects/{project_id}/flows/{flow_id}/run`
-- ✅ **Request Format**: `{body: {text_input: "user message"}}`
-- ✅ **Response Handling**: Extracts rich content from BotDojo's complex response structure
-
-**Rich Content Support:**
-- 🎯 **Product Cards**: Individual supplement cards with SKU, entity ID, and product URLs
-- 🔘 **Interactive Buttons**: Follow-up question buttons (Energy, Immunity, Vitamins, etc.)
-- 📝 **Clean Text**: Removes BotDojo canvas markers for readable text
-- 🔄 **Multi-Message**: Single BotDojo response generates multiple message types
-
-**Environment Variables (if needed):**
-- `BOTDOJO_API_KEY`: Your BotDojo API key
-- `BOTDOJO_BASE_URL`: BotDojo API base URL (https://api.botdojo.com/api/v1)
-- `BOTDOJO_ACCOUNT_ID`: Your BotDojo account ID
-- `BOTDOJO_PROJECT_ID`: Your BotDojo project ID
-- `BOTDOJO_FLOW_ID`: Your BotDojo flow ID
-- `PORT`: Server port (default: 3001)
-
-## Project Structure
-
-```
-├── src/                   # React frontend
-│   ├── components/
-│   │   ├── ChatWindow.tsx      # Main chat container
-│   │   ├── MessageRenderer.tsx # Message type router
-│   │   ├── MessageBubble.tsx   # Text message bubbles
-│   │   ├── ButtonGroup.tsx     # Quick reply buttons
-│   │   ├── Card.tsx           # Rich content cards
-│   │   └── InputBar.tsx       # Message input field
-│   ├── types.ts           # TypeScript type definitions
-│   ├── App.tsx            # Main application component
-│   ├── main.tsx           # Application entry point
-│   └── index.css          # TailwindCSS imports
-├── server/                # Node.js backend
-│   ├── server.js          # Express server with BotDojo integration
-│   ├── package.json       # Server dependencies
-│   └── README.md          # Server documentation
-├── package.json           # Frontend dependencies
-└── README.md              # This file
-```
-
-## Development
-
-### Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-
-### Building for Production
-
+### Frontend Development
 ```bash
+# Start development server
+npm run dev
+
+# Type checking
+npm run typecheck
+
+# Linting
+npm run lint
+
+# Build for production
 npm run build
 ```
 
-The built files will be in the `dist/` directory.
+### Backend Development
+```bash
+cd server
 
-## Customization
+# Start development server with TypeScript
+npm run dev
 
-### Styling
-The application uses TailwindCSS for styling. You can customize the appearance by:
+# Build TypeScript
+npm run build
 
-1. Modifying Tailwind classes in the components
-2. Adding custom CSS in `src/index.css`
-3. Extending the Tailwind configuration in `tailwind.config.js`
+# Start production server
+npm run start
 
-### Adding New Message Types
+# Type checking
+npm run typecheck
 
-1. Define the new message type in `MessageRenderer.tsx`
-2. Create a new component for rendering the message type
-3. Add the rendering logic to `MessageRenderer.tsx`
-4. Update the TypeScript interfaces as needed
+# Run tests
+npm test
 
-## Contributing
+# Run tests with coverage
+npm run test:coverage
+```
+
+## 📚 API Documentation
+
+The API is fully documented with OpenAPI/Swagger specification available at:
+- **Development**: `http://localhost:3001/docs` (if Swagger UI is configured)
+- **Specification**: `server/docs/openapi.yaml`
+
+### Key Endpoints
+
+- `POST /chat` - Send messages to the chatbot
+- `POST /suggestions` - Get suggested follow-up questions
+- `POST /debug-botdojo` - Debug BotDojo API responses
+- `POST /test-structured` - Test structured content types
+- `GET /health` - Health check with cache statistics
+- `GET /cache/stats` - Cache performance metrics
+- `POST /cache/clear` - Clear all cached data
+
+## 🧪 Testing
+
+### Frontend Tests
+```bash
+npm test
+```
+
+### Backend Tests
+```bash
+cd server
+npm test
+npm run test:coverage
+```
+
+### Test Coverage
+The application includes comprehensive test coverage for:
+- BotDojo service integration
+- Canvas data parsing
+- Media utilities
+- Error handling
+- Input validation
+
+## 🔧 Configuration
+
+### Cache Settings
+- **TTL**: 5 minutes (300 seconds) for BotDojo responses
+- **Max Keys**: 1000 cached items
+- **Hit Rate**: Monitor via `/cache/stats` endpoint
+
+### Rate Limiting
+- **Window**: 15 minutes
+- **Max Requests**: 100 per IP
+- **Endpoints**: `/chat`, `/suggestions`
+
+### Security Features
+- **Helmet.js**: Security headers
+- **CORS**: Configurable origins
+- **Input Validation**: All inputs sanitized
+- **Error Handling**: No sensitive data exposure
+
+## 🎨 UI/UX Features
+
+### Accessibility
+- **ARIA Labels**: Screen reader support
+- **Keyboard Navigation**: Full keyboard accessibility
+- **Focus Management**: Proper focus indicators
+- **Color Contrast**: WCAG compliant colors
+
+### Responsive Design
+- **Mobile First**: Optimized for mobile devices
+- **Dark Mode**: Toggle between light and dark themes
+- **Flexible Layout**: Adapts to different screen sizes
+
+### User Experience
+- **Typing Indicators**: Visual feedback during responses
+- **Message History**: Persistent conversation state
+- **Error Recovery**: Graceful error handling
+- **Loading States**: Clear loading indicators
+
+## 📊 Monitoring and Logging
+
+### Logging
+- **Winston**: Structured logging with multiple transports
+- **Request Tracking**: Unique request IDs for debugging
+- **Performance Metrics**: Response time monitoring
+- **Error Tracking**: Comprehensive error logging
+
+### Health Checks
+- **Dependency Validation**: BotDojo API connectivity
+- **Cache Statistics**: Performance metrics
+- **Memory Usage**: Resource monitoring
+
+## 🔄 State Management
+
+### Frontend State
+- **React Context**: Centralized state management
+- **Reducer Pattern**: Predictable state updates
+- **Type Safety**: Full TypeScript integration
+
+### Backend State
+- **Stateless Design**: No server-side session storage
+- **Cache Layer**: Redis-like in-memory caching
+- **Configuration**: Environment-based settings
+
+## 🚀 Deployment
+
+### Production Build
+```bash
+# Frontend
+npm run build
+
+# Backend
+cd server
+npm run build
+npm run start
+```
+
+### Docker Support
+```dockerfile
+# Use the provided Dockerfile
+docker build -t chatbot-app .
+docker run -p 3001:3001 chatbot-app
+```
+
+### Environment Variables
+Ensure all required environment variables are set in production:
+- BotDojo API credentials
+- CORS origins
+- Cache settings
+- Logging configuration
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
 
-## License
+### Code Standards
+- **TypeScript**: Strict type checking enabled
+- **ESLint**: Code quality enforcement
+- **Prettier**: Code formatting
+- **Testing**: Unit tests for new features
+
+## 📝 Changelog
+
+### Version 1.0.0
+- ✅ Modular server architecture
+- ✅ TypeScript integration
+- ✅ Comprehensive error handling
+- ✅ Input validation and sanitization
+- ✅ Unit testing framework
+- ✅ Response caching
+- ✅ Rate limiting
+- ✅ Context API state management
+- ✅ OpenAPI documentation
+- ✅ Accessibility improvements
+- ✅ Performance optimizations
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **BotDojo API Errors**
+   - Verify API credentials in environment variables
+   - Check network connectivity
+   - Review API rate limits
+
+2. **Cache Issues**
+   - Clear cache via `/cache/clear` endpoint
+   - Monitor cache statistics
+   - Adjust TTL settings if needed
+
+3. **Build Errors**
+   - Ensure Node.js version 18+
+   - Clear node_modules and reinstall
+   - Check TypeScript configuration
+
+### Debug Mode
+Enable debug mode in the UI settings to see:
+- Raw BotDojo API responses
+- Request/response details
+- Cache hit/miss information
+
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
+## 🙏 Acknowledgments
 
-If you encounter any issues or have questions, please open an issue on GitHub.
+- BotDojo for AI integration
+- React and TypeScript communities
+- Express.js and Node.js ecosystems
+- Open source contributors

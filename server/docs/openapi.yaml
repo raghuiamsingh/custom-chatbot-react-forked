@@ -1,0 +1,446 @@
+openapi: 3.0.3
+info:
+  title: Custom Chatbot API
+  description: |
+    A comprehensive chatbot API that integrates with BotDojo for supplement discovery and health recommendations.
+    
+    ## Features
+    - Real-time chat with AI assistant
+    - Product recommendations with structured content
+    - Suggested follow-up questions
+    - Debug endpoints for development
+    - Rate limiting and security features
+    - Caching for improved performance
+    
+    ## Authentication
+    This API requires BotDojo credentials to be configured via environment variables.
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Check the health status of the API and its dependencies
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  environment:
+                    type: string
+                    example: "development"
+                  cache:
+                    type: object
+                    properties:
+                      keys:
+                        type: integer
+                        example: 42
+                      hitRate:
+                        type: string
+                        example: "85%"
+                      memory:
+                        type: object
+                        properties:
+                          keys:
+                            type: integer
+                            example: 1024
+                          values:
+                            type: integer
+                            example: 2048
+
+  /chat:
+    post:
+      summary: Send Chat Message
+      description: Send a message to the chatbot and receive AI-generated responses with product recommendations
+      tags:
+        - Chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                  description: The user's message to the chatbot
+                  example: "What supplements can help with sleep?"
+      responses:
+        '200':
+          description: Successful response with chatbot messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+                  debug:
+                    $ref: '#/components/schemas/DebugInfo'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests - rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /suggestions:
+    post:
+      summary: Get Suggested Questions
+      description: Get suggested follow-up questions based on context
+      tags:
+        - Suggestions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context:
+                  type: string
+                  description: Context for generating suggestions
+                  example: "sleep and relaxation"
+                currentSetIndex:
+                  type: integer
+                  minimum: 0
+                  description: Index of the current suggestion set
+                  example: 0
+      responses:
+        '200':
+          description: Successful response with suggested questions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestedQuestions:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: string
+                    example: [["What supplements can help with sleep?", "What can I take for stress?", "How do I support my immune system?"]]
+                  totalSets:
+                    type: integer
+                    example: 3
+                  currentSetIndex:
+                    type: integer
+                    example: 0
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /debug-botdojo:
+    post:
+      summary: Debug BotDojo Response
+      description: Get raw BotDojo API response for debugging purposes
+      tags:
+        - Debug
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                  description: The message to send to BotDojo
+                  example: "What supplements can help with sleep?"
+      responses:
+        '200':
+          description: Raw BotDojo response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  rawResponse:
+                    type: object
+                    description: Raw response from BotDojo API
+                  endpoint:
+                    type: string
+                    example: "https://api.botdojo.com/accounts/123/projects/456/flows/789/run"
+                  requestBody:
+                    type: object
+                    description: Request body sent to BotDojo
+
+  /test-structured:
+    post:
+      summary: Test Structured Content
+      description: Generate test messages with different types of structured content
+      tags:
+        - Testing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - contentType
+              properties:
+                contentType:
+                  type: string
+                  enum: [guide, faq, labResult, image, linkList, product]
+                  description: Type of structured content to generate
+                  example: "product"
+      responses:
+        '200':
+          description: Test message with structured content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+
+  /cache/stats:
+    get:
+      summary: Get Cache Statistics
+      description: Get current cache statistics for monitoring
+      tags:
+        - Cache
+      responses:
+        '200':
+          description: Cache statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: integer
+                    example: 42
+                  hits:
+                    type: integer
+                    example: 150
+                  misses:
+                    type: integer
+                    example: 25
+                  hitRate:
+                    type: number
+                    example: 0.857
+                  ksize:
+                    type: integer
+                    example: 1024
+                  vsize:
+                    type: integer
+                    example: 2048
+
+  /cache/clear:
+    post:
+      summary: Clear Cache
+      description: Clear all cached data
+      tags:
+        - Cache
+      responses:
+        '200':
+          description: Cache cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cache cleared successfully"
+
+components:
+  schemas:
+    Message:
+      type: object
+      required:
+        - id
+        - role
+        - type
+        - content
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the message
+          example: "msg-1642248600000-abc123"
+        role:
+          type: string
+          enum: [user, bot]
+          description: Role of the message sender
+          example: "bot"
+        type:
+          type: string
+          enum: [text, buttons, card, list, typing, canvas, product]
+          description: Type of message content
+          example: "text"
+        content:
+          type: object
+          description: Message content (structure varies by type)
+          properties:
+            text:
+              type: string
+              description: Text content for text messages
+              example: "Here are some supplements that can help with sleep:"
+            options:
+              type: array
+              items:
+                type: string
+              description: Button options for button messages
+              example: ["Energy", "Immunity", "Vitamins"]
+        suggestedQuestions:
+          type: array
+          items:
+            type: string
+          description: Suggested follow-up questions
+          example: ["What supplements can help with sleep?", "What can I take for stress?"]
+        structured:
+          $ref: '#/components/schemas/StructuredContent'
+
+    StructuredContent:
+      type: object
+      required:
+        - type
+        - data
+      properties:
+        type:
+          type: string
+          enum: [product, guide, faq, labResult, image, linkList]
+          description: Type of structured content
+          example: "product"
+        data:
+          type: array
+          items:
+            type: object
+          description: Array of structured content items
+          example: [
+            {
+              "sku": "MAG-001",
+              "productId": "12345",
+              "title": "Magnesium Glycinate",
+              "imageUrl": "https://example.com/image.jpg",
+              "description": "High-quality magnesium for better sleep",
+              "url": "https://example.com/product/mag-001"
+            }
+          ]
+
+    DebugInfo:
+      type: object
+      properties:
+        rawBotDojoResponse:
+          type: object
+          description: Raw response from BotDojo API
+        endpoint:
+          type: string
+          description: BotDojo API endpoint used
+          example: "https://api.botdojo.com/accounts/123/projects/456/flows/789/run"
+        requestBody:
+          type: object
+          description: Request body sent to BotDojo
+        cached:
+          type: boolean
+          description: Whether the response was served from cache
+          example: false
+
+    Error:
+      type: object
+      required:
+        - error
+        - statusCode
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Message is required and must be a non-empty string"
+        statusCode:
+          type: integer
+          description: HTTP status code
+          example: 400
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req_1642248600000_abc123"
+        stack:
+          type: string
+          description: Error stack trace (only in development)
+          example: "Error: Message is required\n    at validateString (/app/src/utils/errorHandler.ts:45:11)"
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: BotDojo API key (configured server-side)
+
+security:
+  - ApiKey: []
+
+tags:
+  - name: Health
+    description: Health check and monitoring endpoints
+  - name: Chat
+    description: Chat functionality and message handling
+  - name: Suggestions
+    description: Suggested questions and follow-ups
+  - name: Debug
+    description: Debug and development endpoints
+  - name: Testing
+    description: Test endpoints for structured content
+  - name: Cache
+    description: Cache management and monitoring
