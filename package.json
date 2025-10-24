@@ -10,10 +10,11 @@
     ".": {
       "require": "./dist/index.umd.js",
       "import": "./dist/index.es.js"
-    }
+    },
+    "./dist/index.css": "./dist/index.css"
   },
   "files": [
-    "/dist"
+    "dist"
   ],
   "publishConfig": {
     "access": "public"

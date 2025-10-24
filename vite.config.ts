@@ -20,9 +20,18 @@ export default defineConfig({
       name: "botdojo-custom-chat",
       fileName: (format) => `index.${format}.js`,
     },
+    cssCodeSplit: true,
     rollupOptions: {
       external: ["react", "react-dom"],
-      output: { globals: { react: "React", "react-dom": "ReactDOM" } },
+      output: {
+        globals: { react: "React", "react-dom": "ReactDOM" },
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith(".css")) {
+            return "index.css";
+          }
+          return assetInfo.name || "[name].[ext]";
+        },
+      },
     },
   },
 });
