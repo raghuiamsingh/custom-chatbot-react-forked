@@ -6,6 +6,7 @@ import { StructuredContentTester } from "../../components/StructuredContentTeste
 import { SuggestedQuestionsAction } from "../../components/SuggestedQuestionsAction";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { useChat } from "../../contexts/ChatContext";
+import Logo from "../../assets/logo.png";
 
 export const ChatbotContent = () => {
   // Hooks
@@ -32,7 +33,7 @@ export const ChatbotContent = () => {
         <div className="flex justify-between items-center max-w-4xl mx-auto">
           <div className="flex items-center gap-3">
             <img
-              src="/logo.png"
+              src={Logo}
               alt="GetHealthy Assistant Logo"
               className="w-8 h-8"
             />

@@ -22,10 +22,12 @@ export default defineConfig({
     },
     cssCodeSplit: true,
     rollupOptions: {
+      // So that react and react-dom don't get bundled up
       external: ["react", "react-dom"],
       output: {
         globals: { react: "React", "react-dom": "ReactDOM" },
         assetFileNames: (assetInfo) => {
+          // export all styles in index.css
           if (assetInfo.name && assetInfo.name.endsWith(".css")) {
             return "index.css";
           }
