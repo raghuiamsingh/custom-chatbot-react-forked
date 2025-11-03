@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import { ChatWindow } from "../../components/ChatWindow";
 import { InputBar } from "../../components/InputBar";
 import { SettingsDropdown } from "../../components/SettingsDropdown";
@@ -8,7 +9,19 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { useChat } from "../../contexts/ChatContext";
 import Logo from "../../assets/logo.png";
 
-export const ChatbotContent = () => {
+interface ChatbotContentProps {
+  isThemeRequired?: boolean;
+}
+
+export const ChatbotContent: React.FC<ChatbotContentProps> = ({ isThemeRequired = false }) => {
+  // Ensure light theme is default when theme toggle is not required
+  useEffect(() => {
+    if (!isThemeRequired) {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isThemeRequired]);
+
   // Hooks
   const {
     state,
@@ -42,7 +55,7 @@ export const ChatbotContent = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
+            {isThemeRequired && <ThemeToggle />}
             <SettingsDropdown
               debugMode={state.debugMode}
               onDebugModeChange={(debugMode) =>

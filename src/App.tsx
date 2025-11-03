@@ -1,7 +1,7 @@
 import { Chatbot } from "./containers";
 
 const App = () => {
-  return <Chatbot />;
+  return <Chatbot isThemeRequired />;
 };
 
 export default App;

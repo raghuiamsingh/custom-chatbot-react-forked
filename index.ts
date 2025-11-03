@@ -1,2 +1,2 @@
 import "./src/index.css";
-export { Chatbot } from "./src/containers/Chatbot/Chatbot.container";
+export { Chatbot, type ChatbotProps } from "./src/containers/Chatbot/Chatbot.container";

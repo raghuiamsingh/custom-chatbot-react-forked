@@ -2,10 +2,14 @@ import type { FC } from "react";
 import { ChatProvider } from "../../contexts/ChatContext";
 import { ChatbotContent } from "./ChatbotContent.component";
 
-export const Chatbot: FC = () => {
+export interface ChatbotProps {
+  isThemeRequired?: boolean;
+}
+
+export const Chatbot: FC<ChatbotProps> = ({ isThemeRequired = false }) => {
   return (
     <ChatProvider>
-      <ChatbotContent />
+      <ChatbotContent isThemeRequired={isThemeRequired} />
     </ChatProvider>
   );
 };
