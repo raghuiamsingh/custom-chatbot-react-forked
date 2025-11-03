@@ -2,17 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Chatbot font scaling - Scale all rem-based sizes proportionally */
-/* Since rem is relative to root HTML, we convert Tailwind rem values to scale with baseFontSize */
+/* Chatbot scaling - Scale fonts, spacing, and other rem-based sizes proportionally */
+/* Calculate scale factor from baseFontSize (16px = scale 1, 18px = scale 1.125, etc.) */
 .chatbot-container {
   --chatbot-font-base: 16px;
-  /* Set base font-size on container */
+  --chatbot-scale: calc(var(--chatbot-font-base, 16px) / 16);
+  /* Set base font-size on container - this makes em units relative to this */
   font-size: var(--chatbot-font-base, 16px);
 }
 
 /* Override Tailwind's rem-based text sizes to scale with baseFontSize prop */
-/* Convert rem values (relative to 16px root) to scale with --chatbot-font-base */
-/* Using !important to ensure override of Tailwind's utility classes */
 .chatbot-container .text-xs { font-size: calc(var(--chatbot-font-base, 16px) * 0.75) !important; }
 .chatbot-container .text-sm { font-size: calc(var(--chatbot-font-base, 16px) * 0.875) !important; }
 .chatbot-container .text-base { font-size: var(--chatbot-font-base, 16px) !important; }
@@ -21,6 +20,46 @@
 .chatbot-container .text-2xl { font-size: calc(var(--chatbot-font-base, 16px) * 1.5) !important; }
 .chatbot-container .text-3xl { font-size: calc(var(--chatbot-font-base, 16px) * 1.875) !important; }
 .chatbot-container .text-4xl { font-size: calc(var(--chatbot-font-base, 16px) * 2.25) !important; }
+
+/* Scale all padding utilities - Convert rem multipliers to pixels using baseFontSize */
+/* Formula: baseFontSize * remMultiplier (e.g., 18px * 0.25 = 4.5px for p-1) */
+.chatbot-container .p-1 { padding: calc(var(--chatbot-font-base, 16px) * 0.25) !important; }
+.chatbot-container .p-2 { padding: calc(var(--chatbot-font-base, 16px) * 0.5) !important; }
+.chatbot-container .p-3 { padding: calc(var(--chatbot-font-base, 16px) * 0.75) !important; }
+.chatbot-container .p-4 { padding: calc(var(--chatbot-font-base, 16px) * 1) !important; }
+.chatbot-container .p-6 { padding: calc(var(--chatbot-font-base, 16px) * 1.5) !important; }
+.chatbot-container .px-2 { padding-left: calc(var(--chatbot-font-base, 16px) * 0.5) !important; padding-right: calc(var(--chatbot-font-base, 16px) * 0.5) !important; }
+.chatbot-container .px-3 { padding-left: calc(var(--chatbot-font-base, 16px) * 0.75) !important; padding-right: calc(var(--chatbot-font-base, 16px) * 0.75) !important; }
+.chatbot-container .px-4 { padding-left: calc(var(--chatbot-font-base, 16px) * 1) !important; padding-right: calc(var(--chatbot-font-base, 16px) * 1) !important; }
+.chatbot-container .px-6 { padding-left: calc(var(--chatbot-font-base, 16px) * 1.5) !important; padding-right: calc(var(--chatbot-font-base, 16px) * 1.5) !important; }
+.chatbot-container .py-2 { padding-top: calc(var(--chatbot-font-base, 16px) * 0.5) !important; padding-bottom: calc(var(--chatbot-font-base, 16px) * 0.5) !important; }
+.chatbot-container .py-3 { padding-top: calc(var(--chatbot-font-base, 16px) * 0.75) !important; padding-bottom: calc(var(--chatbot-font-base, 16px) * 0.75) !important; }
+.chatbot-container .py-4 { padding-top: calc(var(--chatbot-font-base, 16px) * 1) !important; padding-bottom: calc(var(--chatbot-font-base, 16px) * 1) !important; }
+
+/* Scale margin utilities */
+.chatbot-container .m-1 { margin: calc(var(--chatbot-font-base, 16px) * 0.25) !important; }
+.chatbot-container .m-2 { margin: calc(var(--chatbot-font-base, 16px) * 0.5) !important; }
+.chatbot-container .m-4 { margin: calc(var(--chatbot-font-base, 16px) * 1) !important; }
+.chatbot-container .m-6 { margin: calc(var(--chatbot-font-base, 16px) * 1.5) !important; }
+.chatbot-container .mb-6 { margin-bottom: calc(var(--chatbot-font-base, 16px) * 1.5) !important; }
+
+/* Scale gap utilities */
+.chatbot-container .gap-2 { gap: calc(var(--chatbot-font-base, 16px) * 0.5) !important; }
+.chatbot-container .gap-3 { gap: calc(var(--chatbot-font-base, 16px) * 0.75) !important; }
+.chatbot-container .gap-4 { gap: calc(var(--chatbot-font-base, 16px) * 1) !important; }
+
+/* Scale space utilities */
+.chatbot-container .space-y-2 > * + * { margin-top: calc(var(--chatbot-font-base, 16px) * 0.5) !important; }
+.chatbot-container .space-y-4 > * + * { margin-top: calc(var(--chatbot-font-base, 16px) * 1) !important; }
+.chatbot-container .space-x-2 > * + * { margin-left: calc(var(--chatbot-font-base, 16px) * 0.5) !important; }
+.chatbot-container .space-x-3 > * + * { margin-left: calc(var(--chatbot-font-base, 16px) * 0.75) !important; }
+
+/* Scale border-radius */
+.chatbot-container .rounded { border-radius: calc(var(--chatbot-font-base, 16px) * 0.25) !important; }
+.chatbot-container .rounded-lg { border-radius: calc(var(--chatbot-font-base, 16px) * 0.5) !important; }
+.chatbot-container .rounded-xl { border-radius: calc(var(--chatbot-font-base, 16px) * 0.75) !important; }
+.chatbot-container .rounded-2xl { border-radius: calc(var(--chatbot-font-base, 16px) * 1) !important; }
+.chatbot-container .rounded-full { border-radius: 9999px !important; }
 
 /* Custom scrollbar styles for sidebar */
 .sidebar-scroll::-webkit-scrollbar {

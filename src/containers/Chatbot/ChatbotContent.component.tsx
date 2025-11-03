@@ -54,7 +54,7 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
     >
       {/* Header - floating style */}
       <div className="px-6 py-4 transition-colors duration-300 ease-in-out">
-        <div className="flex justify-between items-center max-w-4xl mx-auto">
+        <div className="flex justify-between items-center mx-auto">
           <div className="flex items-center gap-3">
             <img
               src={Logo}
