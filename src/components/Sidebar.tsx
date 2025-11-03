@@ -8,6 +8,7 @@ interface SidebarProps {
   onClose: () => void;
   messageId: string | null;
   messages: Message[];
+  zIndex?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -15,6 +16,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   messageId,
   messages,
+  zIndex = 50,
 }) => {
   // Find the message with the given ID and extract structured content
   const message = messageId
@@ -51,7 +53,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <>
           {/* Mobile Overlay */}
           <motion.div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 md:hidden"
+            style={{ zIndex: zIndex - 10 }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -60,7 +63,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Sidebar */}
           <motion.aside
-            className="sidebar-container fixed top-0 right-0 w-full md:w-[400px] bg-white dark:bg-neutral-900 border-l border-gray-200 dark:border-neutral-800 shadow-xl z-50 md:shadow-2xl"
+            className="sidebar-container fixed top-0 right-0 w-full md:w-[400px] bg-white dark:bg-neutral-900 border-l border-gray-200 dark:border-neutral-800 shadow-xl md:shadow-2xl"
+            style={{ zIndex }}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}

@@ -12,11 +12,13 @@ import Logo from "../../assets/logo.png";
 interface ChatbotContentProps {
   isThemeRequired?: boolean;
   baseFontSize?: number;
+  sidebarZIndex?: number;
 }
 
 export const ChatbotContent: React.FC<ChatbotContentProps> = ({ 
   isThemeRequired = false,
-  baseFontSize = 16 
+  baseFontSize = 16,
+  sidebarZIndex = 50
 }) => {
   // Ensure light theme is default when theme toggle is not required
   useEffect(() => {
@@ -125,6 +127,7 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
         onClose={handleCloseSidebar}
         messageId={state.sidebarState.messageId}
         messages={state.messages}
+        zIndex={sidebarZIndex}
       />
     </div>
   );
