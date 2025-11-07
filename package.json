@@ -1,5 +1,5 @@
 {
-  "name": "botdojo-custom-chat",
+  "name": "@MyVitamins/custom-chatbot-react",
   "private": false,
   "version": "1.0.0",
   "type": "module",
@@ -17,7 +17,8 @@
     "dist"
   ],
   "publishConfig": {
-    "access": "public"
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   },
   "scripts": {
     "dev": "vite",

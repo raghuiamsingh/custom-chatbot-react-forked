@@ -19,7 +19,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: path.resolve(__dirname, "index.ts"),
-      name: "botdojo-custom-chat",
+      name: "custom-chatbot-react",
       fileName: (format) => `index.${format}.js`,
     },
     cssCodeSplit: true,
