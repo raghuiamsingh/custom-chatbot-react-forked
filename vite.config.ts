@@ -1,11 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
+import dts from "vite-plugin-dts";
 import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
+  plugins: [
+    react(),
+    tsconfigPaths(),
+    dts({
+      include: ["src", "index.ts"],
+      outDir: "dist",
+      rollupTypes: false,
+      tsconfigPath: "./tsconfig.declaration.json",
+      entryRoot: ".",
+    }),
+  ],
   server: {
     proxy: {
       "/chat": "http://localhost:3001",
