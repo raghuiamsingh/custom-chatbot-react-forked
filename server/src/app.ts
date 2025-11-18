@@ -32,9 +32,6 @@ import {
 
 const app = express();
 
-// trust AWS proxy so express-rate-limit sees the real IP
-app.set('trust proxy', 1);
-
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
@@ -595,10 +592,6 @@ app.post('/cache/clear', (req: Request, res: Response) => {
   res.json({ message: 'Cache cleared successfully' });
 });
 
-// Catch-all handler: send back React's index.html file for client-side routing
-app.use((req: Request, res: Response) => {
-  res.json({ status: "ok", message: "Chatbot backend is running" });
-});
 
 // Error handling middleware
 app.use(errorHandler);

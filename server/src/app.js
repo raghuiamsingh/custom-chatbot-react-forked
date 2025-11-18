@@ -515,11 +515,6 @@ app.post('/test-structured', (req, res) => {
   }
 });
 
-// Catch-all handler: send back React's index.html file for client-side routing
-app.use((req, res) => {
-  res.json({ status: "ok", message: "Chatbot backend is running" });
-});
-
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
