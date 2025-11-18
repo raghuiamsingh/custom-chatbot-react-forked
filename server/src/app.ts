@@ -71,7 +71,8 @@ app.use('/suggestions', limiter);
 app.use(cors({
   origin: serverConfig.corsOrigins,
   credentials: true,
-  allowedHeaders: ['Content-Type', 'X-Request-ID']
+  allowedHeaders: ['Content-Type', 'X-Request-ID', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
 // Body parsing middleware
