@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { encryptInitData } from "../../utils/encryption";
+import { buildApiUrl } from "../../utils/apiUrl";
 
 interface InitData {
   BOTDOJO_API_KEY: string;
@@ -8,6 +9,7 @@ interface InitData {
   BOTDOJO_ACCOUNT_ID: string;
   BOTDOJO_PROJECT_ID: string;
   BOTDOJO_FLOW_ID: string;
+  BOTDOJO_API_ENDPOINT?: string; // API endpoint prefix (e.g., "/api/v1" for prod, "" or "/" for local)
 }
 
 interface SuggestedQuestionsActionProps {
@@ -69,7 +71,7 @@ export const SuggestedQuestionsAction: React.FC<
       // Encrypt initData before sending
       const encryptedInitData = await encryptInitData(initData);
 
-      const response = await fetch("/suggestions", {
+      const response = await fetch(buildApiUrl("/suggestions", initData.BOTDOJO_API_ENDPOINT), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

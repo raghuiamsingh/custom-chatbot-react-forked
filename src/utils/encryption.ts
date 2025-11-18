@@ -98,12 +98,18 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 /**
  * Fetch the public key from the backend
  * 
+ * @param endpoint - Optional API endpoint prefix (e.g., "/api/v1" for prod, "" or "/" for local)
  * @returns Public key in PEM format
  * @throws Error if fetch fails
  */
-export async function fetchPublicKey(): Promise<string> {
+export async function fetchPublicKey(endpoint?: string): Promise<string> {
     try {
-        const response = await fetch('/encryption/public-key');
+        // Build API URL with endpoint prefix
+        const url = endpoint 
+            ? `${endpoint.endsWith('/') ? endpoint.slice(0, -1) : endpoint}/encryption/public-key`
+            : '/encryption/public-key';
+        
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`Failed to fetch public key: ${response.statusText} (${response.status})`);
         }
@@ -196,11 +202,18 @@ export async function encryptData(data: any, publicKeyPem: string): Promise<stri
  * 
  * Falls back to plain text if Web Crypto API is not available
  * (backend supports both encrypted and plain text)
+ * 
+ * @param initData - The initData object containing BotDojo config and optional endpoint
+ * @returns Encrypted data as base64 string or plain JSON string if encryption unavailable
  */
 let cachedPublicKey: string | null = null;
+let cachedEndpoint: string | undefined = undefined;
 let fallbackWarningShown = false;
 
 export async function encryptInitData(initData: any): Promise<string> {
+    // Extract endpoint from initData if available
+    const endpoint = initData?.BOTDOJO_API_ENDPOINT;
+    
     // Check if encryption is available before attempting
     if (!isWebCryptoAvailable()) {
         // Encryption not available - fall back to plain text
@@ -222,9 +235,10 @@ export async function encryptInitData(initData: any): Promise<string> {
     }
 
     try {
-        // Fetch public key if not cached
-        if (!cachedPublicKey) {
-            cachedPublicKey = await fetchPublicKey();
+        // Fetch public key if not cached or endpoint changed
+        if (!cachedPublicKey || cachedEndpoint !== endpoint) {
+            cachedPublicKey = await fetchPublicKey(endpoint);
+            cachedEndpoint = endpoint;
         }
 
         // Encrypt the initData
@@ -232,6 +246,7 @@ export async function encryptInitData(initData: any): Promise<string> {
     } catch (error) {
         // If encryption fails, clear cache and fall back to plain text
         cachedPublicKey = null;
+        cachedEndpoint = undefined;
 
         // Check if it's a crypto.subtle availability error
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -268,6 +283,7 @@ export function isEncryptionAvailable(): boolean {
  */
 export function clearPublicKeyCache(): void {
     cachedPublicKey = null;
+    cachedEndpoint = undefined;
     fallbackWarningShown = false;
 }
 

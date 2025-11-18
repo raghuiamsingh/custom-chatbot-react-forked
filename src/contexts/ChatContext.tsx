@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, type ReactNode } from "re
 import type { Message, SidebarState, ChatResponse, Product } from "@types";
 import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
+import { buildApiUrl } from "../utils/apiUrl";
 
 // State interfaces
 interface ChatState {
@@ -183,7 +184,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       const encryptedInitData = await encryptInitData(initData);
 
       // Send message to backend server with encrypted BotDojo config in body
-      const response = await fetch("/chat", {
+      const response = await fetch(buildApiUrl("/chat", initData.BOTDOJO_API_ENDPOINT), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -316,7 +317,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       // Encrypt initData before sending
       const encryptedInitData = await encryptInitData(initData);
 
-      const response = await fetch("/test-structured", {
+      const response = await fetch(buildApiUrl("/test-structured", initData.BOTDOJO_API_ENDPOINT), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -371,7 +372,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       const encryptedInitData = await encryptInitData(initData);
 
       // Send a request to get fresh suggestions
-      const response = await fetch("/chat", {
+      const response = await fetch(buildApiUrl("/chat", initData.BOTDOJO_API_ENDPOINT), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
