@@ -1,6 +1,6 @@
 import { normalizeImageUrl, isLikelyImage } from '../utils/mediaUtils';
 import { parseCanvasDataForStructuredContent, cleanTextContent } from '../utils/canvasParser';
-import { BotDojoResponse, ChatMessage, StructuredContentItem } from '../types';
+import { BotDojoResponse, ChatMessage, StructuredContentItem, Product } from '../types';
 
 export interface BotDojoConfig {
   baseUrl: string;
@@ -46,16 +46,22 @@ export default class BotDojoService {
       }
     };
 
-    console.log('Calling BotDojo API:', endpoint);
-    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+    // Trim API key to remove any whitespace
+    const trimmedApiKey = this.apiKey?.trim() || this.apiKey;
+
+    // BotDojo API authentication - according to docs, use Authorization header without Bearer prefix
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+
+    // BotDojo requires API key in Authorization header (no Bearer prefix)
+    if (trimmedApiKey) {
+      headers['Authorization'] = trimmedApiKey;
+    }
 
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Authorization': this.apiKey,
-        'X-API-Key': this.apiKey,
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify(requestBody)
     });
 
@@ -65,6 +71,118 @@ export default class BotDojoService {
     }
 
     return await response.json() as BotDojoResponse;
+  }
+
+  /**
+   * Transform BotDojo response to new format (text, suggestedQuestions, products)
+   * @param botdojoResponse - Raw BotDojo response
+   * @returns New response format
+   */
+  transformToNewFormat(botdojoResponse: BotDojoResponse): { text: string; suggestedQuestions: string[]; products: Product[] } {
+    let textContent = '';
+    let suggestedQuestions: string[] = [];
+    const products: Product[] = [];
+
+    // Extract text and suggested questions
+    if (botdojoResponse.response && botdojoResponse.response.text_output) {
+      const parsedContent = this.parseTextOutput(botdojoResponse.response.text_output);
+      textContent = parsedContent.text;
+      suggestedQuestions = parsedContent.suggestedQuestions;
+      
+      // Process products from parsed content
+      if (parsedContent.products && Array.isArray(parsedContent.products)) {
+        parsedContent.products.forEach((product: any) => {
+          const sku = product.sku || '';
+          const productId = product.productId || product.id || '';
+          // Ensure productUrl has a valid URL, with fallback
+          const productUrl = product.productUrl || product.url || 
+            (sku ? `https://uat.gethealthy.store/botdojo/product?sku=${sku}${productId ? `&pid=${productId}` : ''}` : '');
+          
+          products.push({
+            sku: sku,
+            name: product.name || product.title || `Product: ${sku}`,
+            description: product.description || '',
+            price: product.price || '',
+            ingredients: Array.isArray(product.ingredients) ? product.ingredients : [],
+            benefits: Array.isArray(product.benefits) ? product.benefits : [],
+            dosage: product.dosage || '',
+            warnings: product.warnings || '',
+            productUrl: productUrl,
+            imageUrl: product.imageUrl || product.image || '',
+            category: product.category || '',
+            brand: product.brand || '',
+            servings: product.servings || '',
+            form: product.form || ''
+          });
+        });
+      }
+    }
+
+    // Also extract products from steps if available
+    if (botdojoResponse.aiMessage && botdojoResponse.aiMessage.steps) {
+      const steps = botdojoResponse.aiMessage.steps;
+      const productCardSteps = steps.filter(step => 
+        step.stepLabel === 'ShowProductCardTool' && step.arguments
+      );
+      
+      productCardSteps.forEach(step => {
+        try {
+          const args = JSON.parse(step.arguments!);
+          if (args.sku) {
+            // Check if product already exists
+            const existingIndex = products.findIndex(p => p.sku === args.sku);
+            if (existingIndex === -1) {
+              const raw = step.canvas?.canvasData?.url || '';
+              const normalized = normalizeImageUrl(raw);
+              const safeImageUrl = isLikelyImage(normalized) ? normalized : '';
+              
+              products.push({
+                sku: args.sku,
+                name: args.name || `Product: ${args.sku}`,
+                description: args.description || '',
+                price: args.price || '',
+                ingredients: Array.isArray(args.ingredients) ? args.ingredients : [],
+                benefits: Array.isArray(args.benefits) ? args.benefits : [],
+                dosage: args.dosage || '',
+                warnings: args.warnings || '',
+                productUrl: args.productUrl || args.url || `https://uat.gethealthy.store/botdojo/product?sku=${args.sku}&pid=${args.entity_id || args.productId || ''}`,
+                imageUrl: safeImageUrl,
+                category: args.category || '',
+                brand: args.brand || '',
+                servings: args.servings || '',
+                form: args.form || ''
+              });
+            }
+          }
+        } catch (e) {
+          // Silently skip invalid product card arguments
+        }
+      });
+    }
+
+    // Fallback to simple text if no text content
+    if (!textContent) {
+      if (botdojoResponse.text) {
+        textContent = botdojoResponse.text;
+      } else if (botdojoResponse.message) {
+        textContent = botdojoResponse.message;
+      } else if (botdojoResponse.response?.text_output) {
+        textContent = botdojoResponse.response.text_output;
+      } else {
+        textContent = 'Sorry, I could not process your message.';
+      }
+    }
+
+    // Extract suggested questions from response if not already found
+    if (suggestedQuestions.length === 0 && botdojoResponse.suggestedQuestions) {
+      if (Array.isArray(botdojoResponse.suggestedQuestions[0])) {
+        suggestedQuestions = botdojoResponse.suggestedQuestions[0] as string[];
+      } else {
+        suggestedQuestions = botdojoResponse.suggestedQuestions as string[];
+      }
+    }
+
+    return { text: textContent, suggestedQuestions, products };
   }
 
   /**
@@ -125,7 +243,6 @@ export default class BotDojoService {
       
       // Process products into structured content
       if (parsedContent.products && Array.isArray(parsedContent.products)) {
-        console.log('Processing products from JSON:', parsedContent.products.length);
         parsedContent.products.forEach(product => {
           const normalized = normalizeImageUrl(product.imageUrl || product.image || '');
           const safeImageUrl = isLikelyImage(normalized) ? normalized : undefined;
@@ -159,7 +276,7 @@ export default class BotDojoService {
           });
         }
       } catch (e) {
-        console.log('Error parsing product card arguments:', e);
+        // Silently skip invalid product card arguments
       }
     });
     
@@ -230,6 +347,7 @@ export default class BotDojoService {
 
   /**
    * Parse text output for JSON content
+   * Handles JSON wrapped in markdown code blocks (```json ... ```)
    * @param textOutput - Raw text output
    * @returns Parsed content with text, suggestedQuestions, and products
    */
@@ -238,25 +356,108 @@ export default class BotDojoService {
     let suggestedQuestions: string[] = [];
     let products: any[] = [];
 
-    try {
-      const parsedContent = JSON.parse(textContent);
-      console.log('=== RESPONSE.TEXT_OUTPUT JSON PARSING ===');
-      console.log('Original textContent:', textContent);
-      console.log('Parsed content:', parsedContent);
-      
-      if (parsedContent.text && typeof parsedContent.text === 'string') {
-        textContent = parsedContent.text;
-        if (parsedContent.suggestedQuestions && Array.isArray(parsedContent.suggestedQuestions)) {
-          suggestedQuestions = parsedContent.suggestedQuestions;
-        }
-        
-        // Process products into structured content
-        if (parsedContent.products && Array.isArray(parsedContent.products)) {
-          products = parsedContent.products;
+    // First, try to extract JSON from markdown code blocks
+    let jsonString: string | null = null;
+    
+    // Pattern 1: Try matching markdown code blocks with actual newlines
+    // Pattern: ```json followed by content and closing ```
+    // Handle both with and without newlines after ```json
+    const markdownJsonPattern = /```json\s*\n?([\s\S]*?)\n?```/;
+    const markdownMatch = textOutput.match(markdownJsonPattern);
+    if (markdownMatch && markdownMatch[1]) {
+      jsonString = markdownMatch[1].trim();
+    }
+    
+    // Pattern 2: Try matching markdown code blocks with escaped newlines (\\n)
+    // This handles cases where the text field contains escaped markdown: "```json\\n{...}\\n```"
+    if (!jsonString) {
+      const escapedMarkdownPattern = /```json\\n([\s\S]*?)\\n```/;
+      const escapedMatch = textOutput.match(escapedMarkdownPattern);
+      if (escapedMatch && escapedMatch[1]) {
+        // Unescape the JSON content
+        jsonString = escapedMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\')
+          .trim();
+      }
+    }
+    
+    // Pattern 3: Try matching markdown code blocks without json label (just ```)
+    if (!jsonString) {
+      const codeBlockPattern = /```\s*\n?([\s\S]*?)\n?```/;
+      const codeBlockMatch = textOutput.match(codeBlockPattern);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        const potentialJson = codeBlockMatch[1].trim();
+        // Check if it looks like JSON (starts with { or [)
+        if (potentialJson.startsWith('{') || potentialJson.startsWith('[')) {
+          jsonString = potentialJson;
         }
       }
-    } catch (e) {
-      console.log('Response.text_output JSON parsing failed:', e);
+    }
+    
+    // Pattern 4: Try matching escaped code blocks without json label
+    if (!jsonString) {
+      const escapedCodeBlockPattern = /```\\n([\s\S]*?)\\n```/;
+      const escapedCodeMatch = textOutput.match(escapedCodeBlockPattern);
+      if (escapedCodeMatch && escapedCodeMatch[1]) {
+        const potentialJson = escapedCodeMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\')
+          .trim();
+        if (potentialJson.startsWith('{') || potentialJson.startsWith('[')) {
+          jsonString = potentialJson;
+        }
+      }
+    }
+    
+    // Pattern 5: Just try to parse the whole thing as JSON (no markdown wrapper)
+    if (!jsonString) {
+      jsonString = textOutput.trim();
+    }
+
+    // Try to parse the extracted JSON
+    if (jsonString) {
+      try {
+        const parsedContent = JSON.parse(jsonString);
+        
+        if (parsedContent.text && typeof parsedContent.text === 'string') {
+          textContent = parsedContent.text;
+          if (parsedContent.suggestedQuestions && Array.isArray(parsedContent.suggestedQuestions)) {
+            suggestedQuestions = parsedContent.suggestedQuestions;
+          }
+          
+          // Process products into structured content
+          if (parsedContent.products && Array.isArray(parsedContent.products)) {
+            products = parsedContent.products;
+          }
+        } else {
+          // If the parsed content doesn't have a text field, it might be the whole response
+          // Check if it has the expected structure
+          if (parsedContent.text !== undefined || parsedContent.products !== undefined || parsedContent.suggestedQuestions !== undefined) {
+            textContent = parsedContent.text || textOutput;
+            suggestedQuestions = Array.isArray(parsedContent.suggestedQuestions) ? parsedContent.suggestedQuestions : [];
+            products = Array.isArray(parsedContent.products) ? parsedContent.products : [];
+          }
+        }
+      } catch (e) {
+        // JSON parsing failed, try direct parse of original text
+        try {
+          const directParse = JSON.parse(textOutput);
+          if (directParse.text && typeof directParse.text === 'string') {
+            textContent = directParse.text;
+            if (directParse.suggestedQuestions && Array.isArray(directParse.suggestedQuestions)) {
+              suggestedQuestions = directParse.suggestedQuestions;
+            }
+            if (directParse.products && Array.isArray(directParse.products)) {
+              products = directParse.products;
+            }
+          }
+        } catch (e2) {
+          // Not JSON, use text as-is
+        }
+      }
     }
 
     return { text: textContent, suggestedQuestions, products };
@@ -320,7 +521,7 @@ export default class BotDojoService {
         }
       }
     } catch (e) {
-      console.log('Fallback JSON parsing failed:', e);
+      // Not JSON, use text as-is
     }
     
     // Clean up canvas references from text content
@@ -353,8 +554,6 @@ export default class BotDojoService {
    */
   private normalizeStepsArrayResponse(botdojoResponse: BotDojoResponse): ChatMessage[] {
     const messages: ChatMessage[] = [];
-    console.log('=== STEPS ARRAY FOUND ===');
-    console.log('Number of steps:', botdojoResponse.steps!.length);
     
     const outputStep = botdojoResponse.steps!.find(step => 
       step.stepLabel === 'Output' && step.content
@@ -373,7 +572,7 @@ export default class BotDojoService {
           }
         }
       } catch (e) {
-        console.log('JSON parsing failed:', e);
+        // Not JSON, use text as-is
       }
       
       if (suggestedQuestions.length === 0) {

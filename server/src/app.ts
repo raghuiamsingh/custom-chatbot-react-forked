@@ -5,14 +5,14 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import compression from 'compression';
 
-import { validateEnvironment, serverConfig } from './config/environment';
+import { serverConfig } from './config/environment';
 import BotDojoService from './services/BotDojoService';
 import { botdojoConfig } from './config/environment';
 import { logger } from './utils/logger';
-import { 
-  errorHandler, 
-  asyncHandler, 
-  requestIdMiddleware, 
+import {
+  errorHandler,
+  asyncHandler,
+  requestIdMiddleware,
   requestLoggingMiddleware,
   validateString,
   validateNumber,
@@ -20,17 +20,15 @@ import {
   sanitizeString
 } from './utils/errorHandler';
 import { cacheManager } from './utils/cacheManager';
-import { 
-  ChatRequest, 
-  ChatResponse, 
-  SuggestionsRequest, 
+import { getPublicKey, decryptData, isEncryptedData } from './utils/encryption';
+import {
+  ChatRequest,
+  ChatResponse,
+  SuggestionsRequest,
   SuggestionsResponse,
   TestStructuredRequest,
-  Message 
+  Message
 } from './types';
-
-// Validate environment variables
-validateEnvironment();
 
 const app = express();
 
@@ -72,7 +70,8 @@ app.use('/suggestions', limiter);
 // CORS configuration
 app.use(cors({
   origin: serverConfig.corsOrigins,
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'X-Request-ID']
 }));
 
 // Body parsing middleware
@@ -85,15 +84,98 @@ app.use(express.static(path.join(__dirname, '../../dist')));
 // Serve static files from the public directory (fallback)
 app.use(express.static('public'));
 
-// Initialize BotDojo service
-const botdojoService = new BotDojoService(botdojoConfig);
+// Helper function to extract and parse BotDojo config from request body
+// Supports both encrypted and plain text (for backward compatibility)
+function getBotDojoConfigFromBody(req: Request): {
+  BOTDOJO_API_KEY: string;
+  BOTDOJO_BASE_URL: string;
+  BOTDOJO_ACCOUNT_ID: string;
+  BOTDOJO_PROJECT_ID: string;
+  BOTDOJO_FLOW_ID: string;
+} {
+  const body = req.body as any;
+  const configData = body?.initData;
+
+  if (!configData) {
+    logger.error('Missing initData in request body', {
+      requestId: req.headers['x-request-id'] as string,
+      bodyKeys: body ? Object.keys(body) : 'body is undefined'
+    });
+    throw new Error('BotDojo configuration is required in request body as initData field.');
+  }
+
+  let configString: string;
+
+  // Check if the data is encrypted (base64-encoded encrypted data)
+  if (typeof configData === 'string' && isEncryptedData(configData)) {
+    try {
+      // Decrypt the encrypted data
+      configString = decryptData(configData);
+      logger.info('Decrypted BotDojo config from body', { requestId: req.headers['x-request-id'] as string });
+    } catch (error) {
+      throw new Error(`Failed to decrypt BotDojo configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  } else {
+    // Plain text (backward compatibility) or already an object
+    if (typeof configData === 'string') {
+      configString = configData;
+    } else {
+      // Already an object, stringify it
+      configString = JSON.stringify(configData);
+    }
+  }
+
+  let config;
+  try {
+    config = JSON.parse(configString);
+  } catch (error) {
+    throw new Error('Invalid BotDojo configuration format in request body. Expected JSON.');
+  }
+
+  // Validate required fields
+  if (!config.BOTDOJO_API_KEY || !config.BOTDOJO_BASE_URL || !config.BOTDOJO_ACCOUNT_ID || !config.BOTDOJO_PROJECT_ID || !config.BOTDOJO_FLOW_ID) {
+    throw new Error('BotDojo configuration is incomplete. Please provide all required BotDojo credentials (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_FLOW_ID).');
+  }
+
+  return {
+    BOTDOJO_API_KEY: config.BOTDOJO_API_KEY,
+    BOTDOJO_BASE_URL: config.BOTDOJO_BASE_URL,
+    BOTDOJO_ACCOUNT_ID: config.BOTDOJO_ACCOUNT_ID,
+    BOTDOJO_PROJECT_ID: config.BOTDOJO_PROJECT_ID,
+    BOTDOJO_FLOW_ID: config.BOTDOJO_FLOW_ID,
+  };
+}
+
+// Helper function to get BotDojoService instance from request body
+// Accepts optional config to avoid duplicate parsing
+function getBotDojoService(req: Request, requestConfig?: {
+  BOTDOJO_API_KEY: string;
+  BOTDOJO_BASE_URL: string;
+  BOTDOJO_ACCOUNT_ID: string;
+  BOTDOJO_PROJECT_ID: string;
+  BOTDOJO_FLOW_ID: string;
+}): BotDojoService {
+  // Use provided config or parse from body
+  const config = requestConfig || getBotDojoConfigFromBody(req);
+
+  const serviceConfig = {
+    apiKey: config.BOTDOJO_API_KEY,
+    baseUrl: config.BOTDOJO_BASE_URL,
+    accountId: config.BOTDOJO_ACCOUNT_ID,
+    projectId: config.BOTDOJO_PROJECT_ID,
+    flowId: config.BOTDOJO_FLOW_ID,
+    mediaBase: botdojoConfig.mediaBase,
+  };
+
+  return new BotDojoService(serviceConfig as any);
+}
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
   const cacheStats = cacheManager.getStats();
-  
-  res.json({ 
-    status: 'OK', 
+
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
     environment: serverConfig.nodeEnv,
@@ -108,29 +190,61 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
+// Public key endpoint for RSA encryption
+app.get('/encryption/public-key', (req: Request, res: Response) => {
+  try {
+    const publicKey = getPublicKey();
+    res.json({
+      publicKey,
+      algorithm: 'RSA-OAEP',
+      keySize: 4096,
+      hash: 'SHA-256'
+    });
+  } catch (error) {
+    logger.error('Failed to get public key', { error: error instanceof Error ? error.message : 'Unknown error' });
+    res.status(500).json({
+      error: 'Failed to retrieve public key',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Chat endpoint
 app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest>, res: Response<ChatResponse>) => {
   const requestId = req.headers['x-request-id'] as string;
   const { message } = req.body;
-  
+
   // Input validation
   validateString(message, 'message', 1000);
-  
+
   const sanitizedMessage = sanitizeString(message);
   logger.chatRequest(sanitizedMessage, { requestId });
+
+  // Get BotDojoService instance from request body
+  const requestConfig = getBotDojoConfigFromBody(req);
+  const service = getBotDojoService(req, requestConfig);
+  const activeConfig = {
+    apiKey: requestConfig.BOTDOJO_API_KEY,
+    baseUrl: requestConfig.BOTDOJO_BASE_URL,
+    accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
+    projectId: requestConfig.BOTDOJO_PROJECT_ID,
+    flowId: requestConfig.BOTDOJO_FLOW_ID,
+  };
 
   // Check cache first
   const cachedResponse = cacheManager.getBotDojoResponse(sanitizedMessage);
   if (cachedResponse) {
     logger.info('Using cached BotDojo response', { requestId });
-    const messages = botdojoService.normalizeResponse(cachedResponse);
-    logger.chatResponse(messages, { requestId });
-    
-    return res.json({ 
-      messages,
+    const transformedResponse = service.transformToNewFormat(cachedResponse);
+    logger.chatResponse([{ id: 'transformed', role: 'bot', type: 'text', content: { text: transformedResponse.text } }], { requestId });
+
+    return res.json({
+      text: transformedResponse.text,
+      suggestedQuestions: transformedResponse.suggestedQuestions,
+      products: transformedResponse.products,
       debug: {
         rawBotDojoResponse: cachedResponse,
-        endpoint: `${botdojoConfig.baseUrl}/accounts/${botdojoConfig.accountId}/projects/${botdojoConfig.projectId}/flows/${botdojoConfig.flowId}/run`,
+        endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
         requestBody: { body: { text_input: sanitizedMessage } },
         cached: true
       }
@@ -138,28 +252,30 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
   }
 
   // Call BotDojo API
-  const botdojoResponse = await botdojoService.sendMessage(sanitizedMessage);
-  
+  const botdojoResponse = await service.sendMessage(sanitizedMessage);
+
   // Cache the response
   cacheManager.setBotDojoResponse(sanitizedMessage, botdojoResponse, undefined, 300); // 5 minutes
 
   // Log the raw BotDojo response
   logger.botdojoResponse(
-    `${botdojoConfig.baseUrl}/accounts/${botdojoConfig.accountId}/projects/${botdojoConfig.projectId}/flows/${botdojoConfig.flowId}/run`,
+    `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
     botdojoResponse,
     { requestId }
   );
 
-  // Normalize the response
-  const messages = botdojoService.normalizeResponse(botdojoResponse);
-  logger.chatResponse(messages, { requestId });
+  // Transform to new format
+  const transformedResponse = service.transformToNewFormat(botdojoResponse);
+  logger.chatResponse([{ id: 'transformed', role: 'bot', type: 'text', content: { text: transformedResponse.text } }], { requestId });
 
-  // Return normalized response with raw data for browser console
-  res.json({ 
-    messages,
+  // Return new response format with raw data for browser console
+  res.json({
+    text: transformedResponse.text,
+    suggestedQuestions: transformedResponse.suggestedQuestions,
+    products: transformedResponse.products,
     debug: {
       rawBotDojoResponse: botdojoResponse,
-      endpoint: `${botdojoConfig.baseUrl}/accounts/${botdojoConfig.accountId}/projects/${botdojoConfig.projectId}/flows/${botdojoConfig.flowId}/run`,
+      endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
       requestBody: { body: { text_input: sanitizedMessage } },
       cached: false
     }
@@ -170,21 +286,32 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
 app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest>, res: Response) => {
   const requestId = req.headers['x-request-id'] as string;
   const { message } = req.body;
-  
+
   // Input validation
   validateString(message, 'message', 1000);
 
   const sanitizedMessage = sanitizeString(message);
   logger.info('Debug BotDojo request', { requestId, message: sanitizedMessage });
 
+  // Get BotDojoService instance from request body
+  const requestConfig = getBotDojoConfigFromBody(req);
+  const service = getBotDojoService(req, requestConfig);
+  const activeConfig = {
+    apiKey: requestConfig.BOTDOJO_API_KEY,
+    baseUrl: requestConfig.BOTDOJO_BASE_URL,
+    accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
+    projectId: requestConfig.BOTDOJO_PROJECT_ID,
+    flowId: requestConfig.BOTDOJO_FLOW_ID,
+  };
+
   // Call BotDojo API
-  const botdojoResponse = await botdojoService.sendMessage(sanitizedMessage);
+  const botdojoResponse = await service.sendMessage(sanitizedMessage);
 
   // Return the raw response for inspection
   res.json({
     success: true,
     rawResponse: botdojoResponse,
-    endpoint: `${botdojoConfig.baseUrl}/accounts/${botdojoConfig.accountId}/projects/${botdojoConfig.projectId}/flows/${botdojoConfig.flowId}/run`,
+    endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
     requestBody: { body: { text_input: sanitizedMessage } }
   });
 }));
@@ -193,12 +320,16 @@ app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest
 app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsResponse, SuggestionsRequest>, res: Response<SuggestionsResponse>) => {
   const requestId = req.headers['x-request-id'] as string;
   const { context = '', currentSetIndex = 0 } = req.body;
-  
+
   // Input validation
   validateNumber(currentSetIndex, 'currentSetIndex', 0);
-  
+
   const sanitizedContext = sanitizeString(context);
   logger.info('Suggestions request', { requestId, context: sanitizedContext, currentSetIndex });
+
+  // Get BotDojoService instance from request body
+  const requestConfig = getBotDojoConfigFromBody(req);
+  const service = getBotDojoService(req, requestConfig);
 
   // Check cache first
   const cachedSuggestions = cacheManager.getSuggestions(sanitizedContext, currentSetIndex);
@@ -208,14 +339,14 @@ app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsRespons
   }
 
   // Call BotDojo API for suggestions
-  const botdojoResponse = await botdojoService.sendMessage(
+  const botdojoResponse = await service.sendMessage(
     sanitizedContext || "Please provide suggested follow-up questions",
     { requestType: "suggestions" }
   );
 
   // Extract and normalize suggestions from BotDojo response
-  const suggestedQuestions = botdojoService.extractSuggestedQuestions(botdojoResponse);
-  
+  const suggestedQuestions = service.extractSuggestedQuestions(botdojoResponse);
+
   const response: SuggestionsResponse = {
     suggestedQuestions,
     totalSets: suggestedQuestions.length,
@@ -225,10 +356,10 @@ app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsRespons
   // Cache the suggestions
   cacheManager.setSuggestions(sanitizedContext, currentSetIndex, response, 600); // 10 minutes
 
-  logger.info('Suggestions response', { 
-    requestId, 
+  logger.info('Suggestions response', {
+    requestId,
     totalSets: response.totalSets,
-    currentSetIndex: response.currentSetIndex 
+    currentSetIndex: response.currentSetIndex
   });
 
   res.json(response);
@@ -238,15 +369,15 @@ app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsRespons
 app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Message[] }, TestStructuredRequest>, res: Response) => {
   const requestId = req.headers['x-request-id'] as string;
   const { contentType } = req.body;
-  
+
   // Input validation
   const validContentTypes = ['guide', 'faq', 'labResult', 'image', 'linkList', 'product'];
   validateEnum(contentType, 'contentType', validContentTypes);
-  
+
   logger.info('Test structured content request', { requestId, contentType });
-  
+
   let testMessage: Message;
-  
+
   switch (contentType) {
     case 'guide':
       testMessage = {
@@ -269,7 +400,7 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
         }
       };
       break;
-      
+
     case 'faq':
       testMessage = {
         id: `msg-${Date.now()}-faq`,
@@ -281,27 +412,27 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
         structured: {
           type: 'faq',
           data: [
-            { 
-              question: "What is ashwagandha?", 
-              answer: "Ashwagandha is an adaptogenic herb that supports stress response and helps the body adapt to physical and mental stress. It's commonly used for anxiety, sleep, and energy support." 
+            {
+              question: "What is ashwagandha?",
+              answer: "Ashwagandha is an adaptogenic herb that supports stress response and helps the body adapt to physical and mental stress. It's commonly used for anxiety, sleep, and energy support."
             },
-            { 
-              question: "Are supplements safe to take?", 
-              answer: "Supplements can be safe when taken as directed, but it depends on the product quality, individual needs, and interactions with medications. Always consult with a healthcare practitioner before starting new supplements." 
+            {
+              question: "Are supplements safe to take?",
+              answer: "Supplements can be safe when taken as directed, but it depends on the product quality, individual needs, and interactions with medications. Always consult with a healthcare practitioner before starting new supplements."
             },
-            { 
-              question: "How long does it take for supplements to work?", 
-              answer: "Most supplements take 2-4 weeks to show noticeable effects, though some may work faster or slower depending on the individual and the specific supplement. Consistency is key for best results." 
+            {
+              question: "How long does it take for supplements to work?",
+              answer: "Most supplements take 2-4 weeks to show noticeable effects, though some may work faster or slower depending on the individual and the specific supplement. Consistency is key for best results."
             },
-            { 
-              question: "Can I take multiple supplements together?", 
-              answer: "Many supplements can be taken together, but some may interact with each other or with medications. It's important to research interactions and consult with a healthcare provider about your specific supplement regimen." 
+            {
+              question: "Can I take multiple supplements together?",
+              answer: "Many supplements can be taken together, but some may interact with each other or with medications. It's important to research interactions and consult with a healthcare provider about your specific supplement regimen."
             }
           ]
         }
       };
       break;
-      
+
     case 'labResult':
       testMessage = {
         id: `msg-${Date.now()}-lab`,
@@ -313,30 +444,30 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
         structured: {
           type: 'labResult',
           data: [
-            { 
-              label: "Vitamin D", 
-              value: "34 ng/mL", 
+            {
+              label: "Vitamin D",
+              value: "34 ng/mL",
               range: "30–100 ng/mL",
               status: "Low",
               note: "Consider supplementation, especially during winter months"
             },
-            { 
-              label: "Iron", 
-              value: "55 µg/dL", 
+            {
+              label: "Iron",
+              value: "55 µg/dL",
               range: "50–170 µg/dL",
               status: "Normal",
               note: "Within healthy range"
             },
-            { 
-              label: "B12", 
-              value: "450 pg/mL", 
+            {
+              label: "B12",
+              value: "450 pg/mL",
               range: "200–900 pg/mL",
               status: "Normal",
               note: "Adequate levels for energy and nerve function"
             },
-            { 
-              label: "Magnesium", 
-              value: "1.8 mg/dL", 
+            {
+              label: "Magnesium",
+              value: "1.8 mg/dL",
               range: "1.7–2.2 mg/dL",
               status: "Normal",
               note: "Good levels for muscle and nerve function"
@@ -345,7 +476,7 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
         }
       };
       break;
-      
+
     case 'image':
       testMessage = {
         id: `msg-${Date.now()}-image`,
@@ -371,7 +502,7 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
         }
       };
       break;
-      
+
     case 'linkList':
       testMessage = {
         id: `msg-${Date.now()}-links`,
@@ -405,7 +536,7 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
         }
       };
       break;
-      
+
     case 'product':
       testMessage = {
         id: `msg-${Date.now()}-products`,
@@ -445,7 +576,7 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
       };
       break;
   }
-  
+
   logger.info('Test structured content response', { requestId, contentType });
   res.json({ messages: [testMessage] });
 }));

@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import type { Message, SidebarState } from '../types';
+import React, { createContext, useContext, useReducer, type ReactNode } from "react";
+import type { Message, SidebarState, ChatResponse, Product } from "@types";
+import type { InitData } from "@containers/Chatbot";
+import { encryptInitData } from "../utils/encryption";
 
 // State interfaces
 interface ChatState {
@@ -15,19 +17,19 @@ interface ChatState {
 
 // Action types
 type ChatAction =
-  | { type: 'SET_MESSAGES'; payload: Message[] }
-  | { type: 'ADD_MESSAGE'; payload: Message }
-  | { type: 'ADD_MESSAGES'; payload: Message[] }
-  | { type: 'REMOVE_TYPING_INDICATOR' }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_LOADING_SUGGESTIONS'; payload: boolean }
-  | { type: 'SET_SHOW_INITIAL_SUGGESTIONS'; payload: boolean }
-  | { type: 'SET_SIDEBAR_STATE'; payload: SidebarState }
-  | { type: 'SET_SHOW_CONTENT_TESTER'; payload: boolean }
-  | { type: 'SET_DEBUG_MODE'; payload: boolean }
-  | { type: 'SET_ABORT_CONTROLLER'; payload: AbortController | null }
-  | { type: 'REMOVE_SUGGESTIONS'; payload: string }
-  | { type: 'RESET_CHAT' };
+  | { type: "SET_MESSAGES"; payload: Message[] }
+  | { type: "ADD_MESSAGE"; payload: Message }
+  | { type: "ADD_MESSAGES"; payload: Message[] }
+  | { type: "REMOVE_TYPING_INDICATOR" }
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_LOADING_SUGGESTIONS"; payload: boolean }
+  | { type: "SET_SHOW_INITIAL_SUGGESTIONS"; payload: boolean }
+  | { type: "SET_SIDEBAR_STATE"; payload: SidebarState }
+  | { type: "SET_SHOW_CONTENT_TESTER"; payload: boolean }
+  | { type: "SET_DEBUG_MODE"; payload: boolean }
+  | { type: "SET_ABORT_CONTROLLER"; payload: AbortController | null }
+  | { type: "REMOVE_SUGGESTIONS"; payload: string }
+  | { type: "RESET_CHAT" };
 
 // Initial state
 const initialState: ChatState = {
@@ -44,58 +46,56 @@ const initialState: ChatState = {
 // Reducer
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
-    case 'SET_MESSAGES':
+    case "SET_MESSAGES":
       return { ...state, messages: action.payload };
-    
-    case 'ADD_MESSAGE':
+
+    case "ADD_MESSAGE":
       return { ...state, messages: [...state.messages, action.payload] };
-    
-    case 'ADD_MESSAGES':
+
+    case "ADD_MESSAGES":
       return { ...state, messages: [...state.messages, ...action.payload] };
-    
-    case 'REMOVE_TYPING_INDICATOR':
-      return { 
-        ...state, 
-        messages: state.messages.filter(msg => msg.id !== 'typing') 
-      };
-    
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    
-    case 'SET_LOADING_SUGGESTIONS':
-      return { ...state, isLoadingSuggestions: action.payload };
-    
-    case 'SET_SHOW_INITIAL_SUGGESTIONS':
-      return { ...state, showInitialSuggestions: action.payload };
-    
-    case 'SET_SIDEBAR_STATE':
-      return { ...state, sidebarState: action.payload };
-    
-    case 'SET_SHOW_CONTENT_TESTER':
-      return { ...state, showContentTester: action.payload };
-    
-    case 'SET_DEBUG_MODE':
-      return { ...state, debugMode: action.payload };
-    
-    case 'SET_ABORT_CONTROLLER':
-      return { ...state, abortController: action.payload };
-    
-    case 'REMOVE_SUGGESTIONS':
+
+    case "REMOVE_TYPING_INDICATOR":
       return {
         ...state,
-        messages: state.messages.map(msg => 
-          msg.id === action.payload 
-            ? { ...msg, suggestedQuestions: [] }
-            : msg
-        )
+        messages: state.messages.filter((msg) => msg.id !== "typing"),
       };
-    
-    case 'RESET_CHAT':
+
+    case "SET_LOADING":
+      return { ...state, isLoading: action.payload };
+
+    case "SET_LOADING_SUGGESTIONS":
+      return { ...state, isLoadingSuggestions: action.payload };
+
+    case "SET_SHOW_INITIAL_SUGGESTIONS":
+      return { ...state, showInitialSuggestions: action.payload };
+
+    case "SET_SIDEBAR_STATE":
+      return { ...state, sidebarState: action.payload };
+
+    case "SET_SHOW_CONTENT_TESTER":
+      return { ...state, showContentTester: action.payload };
+
+    case "SET_DEBUG_MODE":
+      return { ...state, debugMode: action.payload };
+
+    case "SET_ABORT_CONTROLLER":
+      return { ...state, abortController: action.payload };
+
+    case "REMOVE_SUGGESTIONS":
+      return {
+        ...state,
+        messages: state.messages.map((msg) =>
+          msg.id === action.payload ? { ...msg, suggestedQuestions: [] } : msg
+        ),
+      };
+
+    case "RESET_CHAT":
       return {
         ...initialState,
         debugMode: state.debugMode, // Preserve debug mode setting
       };
-    
+
     default:
       return state;
   }
@@ -105,6 +105,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 interface ChatContextType {
   state: ChatState;
   dispatch: React.Dispatch<ChatAction>;
+  initData: InitData;
   // Helper functions
   generateId: () => string;
   sendMessage: (content: string) => Promise<void>;
@@ -125,9 +126,10 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 // Provider component
 interface ChatProviderProps {
   children: ReactNode;
+  initData: InitData;
 }
 
-export function ChatProvider({ children }: ChatProviderProps) {
+export function ChatProvider({ children, initData }: ChatProviderProps) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
 
   // Helper function to generate unique IDs
@@ -137,125 +139,145 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const sendMessage = async (content: string) => {
     // Hide initial suggestions on first interaction and add intro message to history
     if (state.showInitialSuggestions) {
-      dispatch({ type: 'SET_SHOW_INITIAL_SUGGESTIONS', payload: false });
-      
+      dispatch({ type: "SET_SHOW_INITIAL_SUGGESTIONS", payload: false });
+
       // Add the introduction message as a bot message to scroll it into history
       const introMessage: Message = {
         id: generateId(),
-        role: 'bot',
-        type: 'text',
-        content: { 
-          text: "Hi, I'm your supplement discovery assistant. I can help you find the right products based on your goals, health concerns, or ingredient preferences. Whether you're curious about which supplements support sleep, stress relief, immune health, or energy, I'll guide you toward options that match your needs.\n\nYou can ask about specific conditions, ingredients, or general wellness goals — and I'll provide tailored product recommendations."
-        }
+        role: "bot",
+        type: "text",
+        content: {
+          text: "Hi, I'm your supplement discovery assistant. I can help you find the right products based on your goals, health concerns, or ingredient preferences. Whether you're curious about which supplements support sleep, stress relief, immune health, or energy, I'll guide you toward options that match your needs.\n\nYou can ask about specific conditions, ingredients, or general wellness goals — and I'll provide tailored product recommendations.",
+        },
       };
-      
-      dispatch({ type: 'SET_MESSAGES', payload: [introMessage] });
+
+      dispatch({ type: "SET_MESSAGES", payload: [introMessage] });
     }
-    
+
     // Add user message immediately
     const userMessage: Message = {
       id: generateId(),
-      role: 'user',
-      type: 'text',
-      content: { text: content }
+      role: "user",
+      type: "text",
+      content: { text: content },
     };
-    
+
     // Add typing indicator immediately
     const typingMessage: Message = {
-      id: 'typing',
-      role: 'bot',
-      type: 'typing',
-      content: {}
+      id: "typing",
+      role: "bot",
+      type: "typing",
+      content: {},
     };
-    
-    dispatch({ type: 'ADD_MESSAGES', payload: [userMessage, typingMessage] });
-    dispatch({ type: 'SET_LOADING', payload: true });
+
+    dispatch({ type: "ADD_MESSAGES", payload: [userMessage, typingMessage] });
+    dispatch({ type: "SET_LOADING", payload: true });
 
     // Create new AbortController for this request
     const controller = new AbortController();
-    dispatch({ type: 'SET_ABORT_CONTROLLER', payload: controller });
+    dispatch({ type: "SET_ABORT_CONTROLLER", payload: controller });
 
     try {
-      // Send message to backend server
-      const response = await fetch('/chat', {
-        method: 'POST',
+      // Encrypt initData before sending
+      // Will automatically fall back to plain text if encryption is not available
+      const encryptedInitData = await encryptInitData(initData);
+
+      // Send message to backend server with encrypted BotDojo config in body
+      const response = await fetch("/chat", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${initData.BOTDOJO_API_KEY}`
         },
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify({
+          message: content,
+          initData: encryptedInitData
+        }),
         signal: controller.signal,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        throw new Error("Failed to send message");
       }
 
-      const data = await response.json();
-      
-      // Log raw BotDojo response to browser console if available and debug mode is enabled
-      if (data.debug && state.debugMode) {
-        console.group('🔍 BotDojo Debug Info');
-        console.log('📡 Endpoint:', data.debug.endpoint);
-        console.log('📤 Request Body:', data.debug.requestBody);
-        console.log('📥 Raw BotDojo Response:', data.debug.rawBotDojoResponse);
-        console.log('💾 Cached:', data.debug.cached || false);
-        console.groupEnd();
-      }
+      const data: ChatResponse | { messages?: Message[] } = await response.json();
 
       // Remove typing indicator and add real bot messages
-      dispatch({ type: 'REMOVE_TYPING_INDICATOR' });
-      
-      if (data.messages && Array.isArray(data.messages)) {
+      dispatch({ type: "REMOVE_TYPING_INDICATOR" });
+
+      // Handle new response format (text, suggestedQuestions, products)
+      if ('text' in data && 'products' in data) {
+        const chatResponse = data as ChatResponse;
+        
+        // Create bot message with text content
+        const botMessage: Message = {
+          id: generateId(),
+          role: "bot",
+          type: "text",
+          content: { text: chatResponse.text },
+          suggestedQuestions: chatResponse.suggestedQuestions,
+          structured: chatResponse.products.length > 0 ? {
+            type: 'product',
+            data: chatResponse.products
+          } : undefined,
+        };
+
+        dispatch({ type: "ADD_MESSAGE", payload: botMessage });
+      } 
+      // Handle legacy response format (messages array)
+      else if (data.messages && Array.isArray(data.messages)) {
         const botMessages: Message[] = data.messages.map((msg: any) => ({
           id: msg.id || generateId(),
-          role: msg.role || 'bot',
-          type: msg.type || 'text',
-          content: msg.content || 'Sorry, I could not process your message.',
+          role: msg.role || "bot",
+          type: msg.type || "text",
+          content: msg.content || "Sorry, I could not process your message.",
           suggestedQuestions: msg.suggestedQuestions || undefined,
-          structured: msg.structured || undefined
+          structured: msg.structured || undefined,
         }));
-        
-        dispatch({ type: 'ADD_MESSAGES', payload: botMessages });
+
+        dispatch({ type: "ADD_MESSAGES", payload: botMessages });
       } else {
         // Fallback for single message response
         const botMessage: Message = {
           id: generateId(),
-          role: 'bot',
-          type: data.type || 'text',
-          content: data.content || 'Sorry, I could not process your message.',
-          suggestedQuestions: data.suggestedQuestions || undefined
+          role: "bot",
+          type: (data as any).type || "text",
+          content: (data as any).content || "Sorry, I could not process your message.",
+          suggestedQuestions: (data as any).suggestedQuestions || undefined,
         };
-        
-        dispatch({ type: 'ADD_MESSAGE', payload: botMessage });
+
+        dispatch({ type: "ADD_MESSAGE", payload: botMessage });
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      
+      console.error("Error sending message:", error);
+
       // Check if the request was aborted
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.name === "AbortError") {
         // Remove typing indicator and add cancellation message
-        dispatch({ type: 'REMOVE_TYPING_INDICATOR' });
+        dispatch({ type: "REMOVE_TYPING_INDICATOR" });
         const cancelledMessage: Message = {
           id: generateId(),
-          role: 'bot',
-          type: 'text',
-          content: { text: 'Generation stopped.' }
+          role: "bot",
+          type: "text",
+          content: { text: "Generation stopped." },
         };
-        dispatch({ type: 'ADD_MESSAGE', payload: cancelledMessage });
+        dispatch({ type: "ADD_MESSAGE", payload: cancelledMessage });
       } else {
         // Remove typing indicator and add error message
-        dispatch({ type: 'REMOVE_TYPING_INDICATOR' });
+        dispatch({ type: "REMOVE_TYPING_INDICATOR" });
         const errorMessage: Message = {
           id: generateId(),
-          role: 'bot',
-          type: 'text',
-          content: { text: 'Sorry, there was an error processing your message. Please try again.' }
+          role: "bot",
+          type: "text",
+          content: {
+            text: "Sorry, there was an error processing your message. Please try again.",
+          },
         };
-        dispatch({ type: 'ADD_MESSAGE', payload: errorMessage });
+        dispatch({ type: "ADD_MESSAGE", payload: errorMessage });
       }
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-      dispatch({ type: 'SET_ABORT_CONTROLLER', payload: null });
+      dispatch({ type: "SET_LOADING", payload: false });
+      dispatch({ type: "SET_ABORT_CONTROLLER", payload: null });
     }
   };
 
@@ -270,88 +292,102 @@ export function ChatProvider({ children }: ChatProviderProps) {
   };
 
   const handleNewChat = () => {
-    dispatch({ type: 'RESET_CHAT' });
+    dispatch({ type: "RESET_CHAT" });
   };
 
   const handleViewRecommendations = (messageId: string) => {
-    dispatch({ type: 'SET_SIDEBAR_STATE', payload: { isOpen: true, messageId } });
+    dispatch({
+      type: "SET_SIDEBAR_STATE",
+      payload: { isOpen: true, messageId },
+    });
   };
 
   const handleCloseSidebar = () => {
-    dispatch({ type: 'SET_SIDEBAR_STATE', payload: { isOpen: false, messageId: null } });
+    dispatch({
+      type: "SET_SIDEBAR_STATE",
+      payload: { isOpen: false, messageId: null },
+    });
   };
 
   const handleTestStructuredContent = async (contentType: string) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      const response = await fetch('/test-structured', {
-        method: 'POST',
+      dispatch({ type: "SET_LOADING", payload: true });
+
+      // Encrypt initData before sending
+      const encryptedInitData = await encryptInitData(initData);
+
+      const response = await fetch("/test-structured", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${initData.BOTDOJO_API_KEY}`
         },
-        body: JSON.stringify({ contentType }),
+        body: JSON.stringify({
+          contentType,
+          initData: encryptedInitData
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch test content');
+        throw new Error("Failed to fetch test content");
       }
 
       const data = await response.json();
-      
+
       if (data.messages && Array.isArray(data.messages)) {
         const testMessages: Message[] = data.messages.map((msg: any) => ({
           id: msg.id || generateId(),
-          role: msg.role || 'bot',
-          type: msg.type || 'text',
-          content: msg.content || 'Test content',
-          structured: msg.structured || undefined
+          role: msg.role || "bot",
+          type: msg.type || "text",
+          content: msg.content || "Test content",
+          structured: msg.structured || undefined,
         }));
-        
-        dispatch({ type: 'ADD_MESSAGES', payload: testMessages });
+
+        dispatch({ type: "ADD_MESSAGES", payload: testMessages });
       }
     } catch (error) {
-      console.error('Error testing structured content:', error);
+      console.error("Error testing structured content:", error);
       // Add error message to chat
       const errorMessage: Message = {
         id: generateId(),
-        role: 'bot',
-        type: 'text',
-        content: { text: 'Sorry, there was an error loading the test content.' }
+        role: "bot",
+        type: "text",
+        content: {
+          text: "Sorry, there was an error loading the test content.",
+        },
       };
-      dispatch({ type: 'ADD_MESSAGE', payload: errorMessage });
+      dispatch({ type: "ADD_MESSAGE", payload: errorMessage });
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      dispatch({ type: "SET_LOADING", payload: false });
     }
   };
 
   const handleRefreshSuggestions = async () => {
     if (state.messages.length === 0) return;
-    
-    dispatch({ type: 'SET_LOADING_SUGGESTIONS', payload: true });
+
+    dispatch({ type: "SET_LOADING_SUGGESTIONS", payload: true });
     try {
+      // Encrypt initData before sending
+      const encryptedInitData = await encryptInitData(initData);
+
       // Send a request to get fresh suggestions
-      const response = await fetch('/chat', {
-        method: 'POST',
+      const response = await fetch("/chat", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${initData.BOTDOJO_API_KEY}`
         },
-        body: JSON.stringify({ message: "Please provide some suggested follow-up questions" }),
+        body: JSON.stringify({
+          message: "Please provide some suggested follow-up questions",
+          initData: encryptedInitData
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to refresh suggestions');
+        throw new Error("Failed to refresh suggestions");
       }
 
       const data = await response.json();
-      
-      // Log raw BotDojo response to browser console if available and debug mode is enabled
-      if (data.debug && state.debugMode) {
-        console.group('🔍 BotDojo Debug Info (Suggestions Refresh)');
-        console.log('📡 Endpoint:', data.debug.endpoint);
-        console.log('📤 Request Body:', data.debug.requestBody);
-        console.log('📥 Raw BotDojo Response:', data.debug.rawBotDojoResponse);
-        console.groupEnd();
-      }
 
       // Update the last bot message with new suggestions
       if (data.messages && Array.isArray(data.messages)) {
@@ -359,62 +395,75 @@ export function ChatProvider({ children }: ChatProviderProps) {
         // Find the last bot message index
         let lastBotMessageIndex = -1;
         for (let i = newMessages.length - 1; i >= 0; i--) {
-          if (newMessages[i].role === 'bot') {
+          if (newMessages[i].role === "bot") {
             lastBotMessageIndex = i;
             break;
           }
         }
-        
+
         if (lastBotMessageIndex !== -1) {
           // Find suggestions from the new response
-          const suggestionsMessage = data.messages.find((msg: any) => msg.suggestedQuestions);
+          const suggestionsMessage = data.messages.find(
+            (msg: any) => msg.suggestedQuestions
+          );
           if (suggestionsMessage) {
             newMessages[lastBotMessageIndex] = {
               ...newMessages[lastBotMessageIndex],
-              suggestedQuestions: suggestionsMessage.suggestedQuestions
+              suggestedQuestions: suggestionsMessage.suggestedQuestions,
             };
-            dispatch({ type: 'SET_MESSAGES', payload: newMessages });
+            dispatch({ type: "SET_MESSAGES", payload: newMessages });
           }
         }
       }
     } catch (error) {
-      console.error('Error refreshing suggestions:', error);
+      console.error("Error refreshing suggestions:", error);
     } finally {
-      dispatch({ type: 'SET_LOADING_SUGGESTIONS', payload: false });
+      dispatch({ type: "SET_LOADING_SUGGESTIONS", payload: false });
     }
   };
 
   // Get suggested questions from the last bot message
   const getSuggestedQuestions = () => {
-    const lastBotMessage = [...state.messages].reverse().find(msg => msg.role === 'bot');
+    const lastBotMessage = [...state.messages]
+      .reverse()
+      .find((msg) => msg.role === "bot");
     return lastBotMessage?.suggestedQuestions || [];
   };
 
   // Get context from the last bot message for suggestions
   const getSuggestionsContext = () => {
-    const lastBotMessage = [...state.messages].reverse().find(msg => msg.role === 'bot');
-    if (lastBotMessage && lastBotMessage.content && lastBotMessage.content.text) {
+    const lastBotMessage = [...state.messages]
+      .reverse()
+      .find((msg) => msg.role === "bot");
+    if (
+      lastBotMessage &&
+      lastBotMessage.content &&
+      lastBotMessage.content.text
+    ) {
       // Extract key topics from the bot's response for context
       const text = lastBotMessage.content.text.toLowerCase();
-      if (text.includes('sleep')) return 'sleep and relaxation';
-      if (text.includes('energy') || text.includes('focus')) return 'energy and cognitive function';
-      if (text.includes('immune')) return 'immune system support';
-      if (text.includes('stress')) return 'stress management';
-      if (text.includes('vitamin') || text.includes('multivitamin')) return 'daily vitamins and nutrition';
-      if (text.includes('digest')) return 'digestive health';
-      if (text.includes('heart')) return 'cardiovascular health';
-      if (text.includes('recovery')) return 'recovery and performance';
+      if (text.includes("sleep")) return "sleep and relaxation";
+      if (text.includes("energy") || text.includes("focus"))
+        return "energy and cognitive function";
+      if (text.includes("immune")) return "immune system support";
+      if (text.includes("stress")) return "stress management";
+      if (text.includes("vitamin") || text.includes("multivitamin"))
+        return "daily vitamins and nutrition";
+      if (text.includes("digest")) return "digestive health";
+      if (text.includes("heart")) return "cardiovascular health";
+      if (text.includes("recovery")) return "recovery and performance";
     }
-    return 'general health and wellness';
+    return "general health and wellness";
   };
 
   const handleRemoveSuggestions = (messageId: string) => {
-    dispatch({ type: 'REMOVE_SUGGESTIONS', payload: messageId });
+    dispatch({ type: "REMOVE_SUGGESTIONS", payload: messageId });
   };
 
   const contextValue: ChatContextType = {
     state,
     dispatch,
+    initData,
     generateId,
     sendMessage,
     handleButtonClick,
@@ -430,9 +479,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   };
 
   return (
-    <ChatContext.Provider value={contextValue}>
-      {children}
-    </ChatContext.Provider>
+    <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>
   );
 }
 
@@ -440,7 +487,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 export function useChat() {
   const context = useContext(ChatContext);
   if (context === undefined) {
-    throw new Error('useChat must be used within a ChatProvider');
+    throw new Error("useChat must be used within a ChatProvider");
   }
   return context;
 }

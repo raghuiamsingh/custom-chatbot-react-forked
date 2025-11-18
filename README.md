@@ -58,13 +58,6 @@ server/
 Create a `.env` file in the server directory:
 
 ```env
-# BotDojo Configuration
-BOTDOJO_API_KEY=your_api_key_here
-BOTDOJO_BASE_URL=https://api.botdojo.com
-BOTDOJO_ACCOUNT_ID=your_account_id
-BOTDOJO_PROJECT_ID=your_project_id
-BOTDOJO_FLOW_ID=your_flow_id
-
 # Server Configuration
 PORT=3001
 NODE_ENV=development
@@ -310,9 +303,10 @@ Ensure all required environment variables are set in production:
 ### Common Issues
 
 1. **BotDojo API Errors**
-   - Verify API credentials in environment variables
+   - Verify API credentials are provided in request body as initData field (encrypted or plain JSON)
    - Check network connectivity
    - Review API rate limits
+   - Ensure all required fields (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_FLOW_ID) are included
 
 2. **Cache Issues**
    - Clear cache via `/cache/clear` endpoint

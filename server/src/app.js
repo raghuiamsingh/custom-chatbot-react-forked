@@ -5,12 +5,9 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const compression = require('compression');
 
-const { validateEnvironment, serverConfig } = require('./config/environment');
+const { serverConfig } = require('./config/environment');
 const BotDojoService = require('./services/BotDojoService');
 const { botdojoConfig } = require('./config/environment');
-
-// Validate environment variables
-validateEnvironment();
 
 const app = express();
 
@@ -46,7 +43,8 @@ app.use('/suggestions', limiter);
 // CORS configuration
 app.use(cors({
   origin: serverConfig.corsOrigins,
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'X-Request-ID', 'X-BotDojo-Config']
 }));
 
 // Body parsing middleware
@@ -59,8 +57,50 @@ app.use(express.static(path.join(__dirname, '../../dist')));
 // Serve static files from the public directory (fallback)
 app.use(express.static('public'));
 
-// Initialize BotDojo service
-const botdojoService = new BotDojoService(botdojoConfig);
+// Helper function to extract and parse BotDojo config from headers
+function getBotDojoConfigFromHeaders(req) {
+  const configHeader = req.headers['x-botdojo-config'];
+  
+  if (!configHeader) {
+    throw new Error('BotDojo configuration is required in X-BotDojo-Config header.');
+  }
+  
+  let config;
+  try {
+    config = typeof configHeader === 'string' ? JSON.parse(configHeader) : configHeader;
+  } catch (error) {
+    throw new Error('Invalid BotDojo configuration format in X-BotDojo-Config header. Expected JSON.');
+  }
+  
+  // Validate required fields
+  if (!config.BOTDOJO_API_KEY || !config.BOTDOJO_BASE_URL || !config.BOTDOJO_ACCOUNT_ID || !config.BOTDOJO_PROJECT_ID || !config.BOTDOJO_FLOW_ID) {
+    throw new Error('BotDojo configuration is incomplete. Please provide all required BotDojo credentials (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_FLOW_ID).');
+  }
+  
+  return {
+    BOTDOJO_API_KEY: config.BOTDOJO_API_KEY,
+    BOTDOJO_BASE_URL: config.BOTDOJO_BASE_URL,
+    BOTDOJO_ACCOUNT_ID: config.BOTDOJO_ACCOUNT_ID,
+    BOTDOJO_PROJECT_ID: config.BOTDOJO_PROJECT_ID,
+    BOTDOJO_FLOW_ID: config.BOTDOJO_FLOW_ID,
+  };
+}
+
+// Helper function to get BotDojoService instance from headers
+function getBotDojoService(req) {
+  const requestConfig = getBotDojoConfigFromHeaders(req);
+  
+  const config = {
+    apiKey: requestConfig.BOTDOJO_API_KEY,
+    baseUrl: requestConfig.BOTDOJO_BASE_URL,
+    accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
+    projectId: requestConfig.BOTDOJO_PROJECT_ID,
+    flowId: requestConfig.BOTDOJO_FLOW_ID,
+    mediaBase: botdojoConfig.mediaBase,
+  };
+  
+  return new BotDojoService(config);
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -92,16 +132,22 @@ app.post('/chat', async (req, res) => {
 
     console.log('Received message:', message);
 
-    // Call BotDojo API
-    const botdojoResponse = await botdojoService.sendMessage(message.trim());
+    // Get BotDojoService instance from headers
+    const service = getBotDojoService(req);
+    const requestConfig = getBotDojoConfigFromHeaders(req);
+    const activeConfig = {
+      apiKey: requestConfig.BOTDOJO_API_KEY,
+      baseUrl: requestConfig.BOTDOJO_BASE_URL,
+      accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
+      projectId: requestConfig.BOTDOJO_PROJECT_ID,
+      flowId: requestConfig.BOTDOJO_FLOW_ID,
+    };
 
-    // Log the raw BotDojo response
-    console.log('\n=== RAW BOTDOJO RESPONSE ===');
-    console.log(JSON.stringify(botdojoResponse, null, 2));
-    console.log('=== END RAW RESPONSE ===\n');
+    // Call BotDojo API
+    const botdojoResponse = await service.sendMessage(message.trim());
 
     // Normalize the response
-    const messages = botdojoService.normalizeResponse(botdojoResponse);
+    const messages = service.normalizeResponse(botdojoResponse);
 
     // Log the normalized messages
     console.log('\n=== NORMALIZED MESSAGES ===');
@@ -113,7 +159,7 @@ app.post('/chat', async (req, res) => {
       messages,
       debug: {
         rawBotDojoResponse: botdojoResponse,
-        endpoint: `${botdojoConfig.baseUrl}/accounts/${botdojoConfig.accountId}/projects/${botdojoConfig.projectId}/flows/${botdojoConfig.flowId}/run`,
+        endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
         requestBody: { body: { text_input: message.trim() } }
       }
     });
@@ -143,17 +189,25 @@ app.post('/debug-botdojo', async (req, res) => {
       return res.status(400).json({ error: 'Message is required and must be a non-empty string' });
     }
 
-    console.log('=== DEBUG MODE: Raw BotDojo Response ===');
-    console.log('Message:', message);
+    // Get BotDojoService instance from headers
+    const service = getBotDojoService(req);
+    const requestConfig = getBotDojoConfigFromHeaders(req);
+    const activeConfig = {
+      apiKey: requestConfig.BOTDOJO_API_KEY,
+      baseUrl: requestConfig.BOTDOJO_BASE_URL,
+      accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
+      projectId: requestConfig.BOTDOJO_PROJECT_ID,
+      flowId: requestConfig.BOTDOJO_FLOW_ID,
+    };
 
     // Call BotDojo API
-    const botdojoResponse = await botdojoService.sendMessage(message.trim());
+    const botdojoResponse = await service.sendMessage(message.trim());
 
     // Return the raw response for inspection
     res.json({
       success: true,
       rawResponse: botdojoResponse,
-      endpoint: `${botdojoConfig.baseUrl}/accounts/${botdojoConfig.accountId}/projects/${botdojoConfig.projectId}/flows/${botdojoConfig.flowId}/run`,
+      endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
       requestBody: { body: { text_input: message.trim() } }
     });
 
@@ -178,8 +232,11 @@ app.post('/suggestions', async (req, res) => {
     
     console.log('Received suggestions request:', { context, currentSetIndex });
 
+    // Get BotDojoService instance from headers
+    const service = getBotDojoService(req);
+
     // Call BotDojo API for suggestions
-    const botdojoResponse = await botdojoService.sendMessage(
+    const botdojoResponse = await service.sendMessage(
       context || "Please provide suggested follow-up questions",
       { requestType: "suggestions" }
     );
@@ -189,7 +246,7 @@ app.post('/suggestions', async (req, res) => {
     console.log('=== END RAW RESPONSE ===');
 
     // Extract and normalize suggestions from BotDojo response
-    const suggestedQuestions = botdojoService.extractSuggestedQuestions(botdojoResponse);
+    const suggestedQuestions = service.extractSuggestedQuestions(botdojoResponse);
     
     console.log('=== NORMALIZED SUGGESTIONS ===');
     console.log(JSON.stringify(suggestedQuestions, null, 2));

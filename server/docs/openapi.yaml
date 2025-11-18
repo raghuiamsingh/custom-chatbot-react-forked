@@ -13,7 +13,7 @@ info:
     - Caching for improved performance
     
     ## Authentication
-    This API requires BotDojo credentials to be configured via environment variables.
+    BotDojo credentials must be provided in the request body as initData field (encrypted or plain JSON) for each API request.
     
   version: 1.0.0
   contact:
@@ -90,6 +90,7 @@ paths:
               type: object
               required:
                 - message
+                - initData
               properties:
                 message:
                   type: string
@@ -97,6 +98,10 @@ paths:
                   maxLength: 1000
                   description: The user's message to the chatbot
                   example: "What supplements can help with sleep?"
+                initData:
+                  type: string
+                  description: BotDojo credentials (encrypted or plain JSON string). Must include BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, and BOTDOJO_FLOW_ID. Can be encrypted using RSA encryption or sent as plain JSON.
+                  example: '{"BOTDOJO_API_KEY":"your-api-key","BOTDOJO_BASE_URL":"https://api.botdojo.com","BOTDOJO_ACCOUNT_ID":"account-id","BOTDOJO_PROJECT_ID":"project-id","BOTDOJO_FLOW_ID":"flow-id"}'
       responses:
         '200':
           description: Successful response with chatbot messages
@@ -142,6 +147,8 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - initData
               properties:
                 context:
                   type: string
@@ -152,6 +159,10 @@ paths:
                   minimum: 0
                   description: Index of the current suggestion set
                   example: 0
+                initData:
+                  type: string
+                  description: BotDojo credentials (encrypted or plain JSON string). Must include BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, and BOTDOJO_FLOW_ID. Can be encrypted using RSA encryption or sent as plain JSON.
+                  example: '{"BOTDOJO_API_KEY":"your-api-key","BOTDOJO_BASE_URL":"https://api.botdojo.com","BOTDOJO_ACCOUNT_ID":"account-id","BOTDOJO_PROJECT_ID":"project-id","BOTDOJO_FLOW_ID":"flow-id"}'
       responses:
         '200':
           description: Successful response with suggested questions
@@ -194,6 +205,7 @@ paths:
               type: object
               required:
                 - message
+                - initData
               properties:
                 message:
                   type: string
@@ -201,6 +213,10 @@ paths:
                   maxLength: 1000
                   description: The message to send to BotDojo
                   example: "What supplements can help with sleep?"
+                initData:
+                  type: string
+                  description: BotDojo credentials (encrypted or plain JSON string). Must include BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, and BOTDOJO_FLOW_ID. Can be encrypted using RSA encryption or sent as plain JSON.
+                  example: '{"BOTDOJO_API_KEY":"your-api-key","BOTDOJO_BASE_URL":"https://api.botdojo.com","BOTDOJO_ACCOUNT_ID":"account-id","BOTDOJO_PROJECT_ID":"project-id","BOTDOJO_FLOW_ID":"flow-id"}'
       responses:
         '200':
           description: Raw BotDojo response
@@ -236,12 +252,17 @@ paths:
               type: object
               required:
                 - contentType
+                - initData
               properties:
                 contentType:
                   type: string
                   enum: [guide, faq, labResult, image, linkList, product]
                   description: Type of structured content to generate
                   example: "product"
+                initData:
+                  type: string
+                  description: BotDojo credentials (encrypted or plain JSON string). Must include BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, and BOTDOJO_FLOW_ID. Can be encrypted using RSA encryption or sent as plain JSON.
+                  example: '{"BOTDOJO_API_KEY":"your-api-key","BOTDOJO_BASE_URL":"https://api.botdojo.com","BOTDOJO_ACCOUNT_ID":"account-id","BOTDOJO_PROJECT_ID":"project-id","BOTDOJO_FLOW_ID":"flow-id"}'
       responses:
         '200':
           description: Test message with structured content
@@ -421,15 +442,8 @@ components:
           description: Error stack trace (only in development)
           example: "Error: Message is required\n    at validateString (/app/src/utils/errorHandler.ts:45:11)"
 
-  securitySchemes:
-    ApiKey:
-      type: apiKey
-      in: header
-      name: X-API-Key
-      description: BotDojo API key (configured server-side)
-
-security:
-  - ApiKey: []
+  # Note: BotDojo credentials are provided in request body as initData field
+  # (encrypted or plain JSON) rather than as a header
 
 tags:
   - name: Health

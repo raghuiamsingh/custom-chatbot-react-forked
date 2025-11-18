@@ -44,11 +44,19 @@ export interface StructuredContentItem {
 
 export interface Product {
   sku: string;
-  productId: number | string;
-  title: string;
-  imageUrl?: string;
-  description?: string;
-  url: string;
+  name: string;
+  description: string;
+  price: string;
+  ingredients: string[];
+  benefits: string[];
+  dosage: string;
+  warnings: string;
+  productUrl: string;
+  imageUrl: string;
+  category: string;
+  brand: string;
+  servings: string;
+  form: string;
 }
 
 export interface BotDojoResponse {
@@ -91,19 +99,42 @@ export interface BotDojoOutput {
 
 export interface ChatRequest {
   message: string;
+  initData: string | {
+    BOTDOJO_API_KEY: string;
+    BOTDOJO_BASE_URL: string;
+    BOTDOJO_ACCOUNT_ID: string;
+    BOTDOJO_PROJECT_ID: string;
+    BOTDOJO_FLOW_ID: string;
+  };
 }
 
 export interface SuggestionsRequest {
   context?: string;
   currentSetIndex?: number;
+  initData: string | {
+    BOTDOJO_API_KEY: string;
+    BOTDOJO_BASE_URL: string;
+    BOTDOJO_ACCOUNT_ID: string;
+    BOTDOJO_PROJECT_ID: string;
+    BOTDOJO_FLOW_ID: string;
+  };
 }
 
 export interface TestStructuredRequest {
   contentType: 'guide' | 'faq' | 'labResult' | 'image' | 'linkList' | 'product';
+  initData: string | {
+    BOTDOJO_API_KEY: string;
+    BOTDOJO_BASE_URL: string;
+    BOTDOJO_ACCOUNT_ID: string;
+    BOTDOJO_PROJECT_ID: string;
+    BOTDOJO_FLOW_ID: string;
+  };
 }
 
 export interface ChatResponse {
-  messages: Message[];
+  text: string;
+  suggestedQuestions: string[];
+  products: Product[];
   debug?: {
     rawBotDojoResponse: BotDojoResponse;
     endpoint: string;

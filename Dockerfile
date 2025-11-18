@@ -26,8 +26,7 @@
     ENV PORT=3001
     EXPOSE 3001
     
-    # BotDojo API credentials should be provided via environment variables at runtime
-    # Required: BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_FLOW_ID
+    # BotDojo API credentials must be provided in request body as initData field (encrypted or plain JSON) for each API request
     
     WORKDIR /app/server
     CMD ["node", "server.js"]

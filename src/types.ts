@@ -10,6 +10,35 @@ export type Message = {
   }; // Optional structured content for sidebar with content type
 };
 
+export type Product = {
+  sku: string;
+  name: string;
+  description: string;
+  price: string;
+  ingredients: string[];
+  benefits: string[];
+  dosage: string;
+  warnings: string;
+  productUrl: string;
+  imageUrl: string;
+  category: string;
+  brand: string;
+  servings: string;
+  form: string;
+};
+
+export type ChatResponse = {
+  text: string;
+  suggestedQuestions: string[];
+  products: Product[];
+  debug?: {
+    rawBotDojoResponse: any;
+    endpoint: string;
+    requestBody: any;
+    cached?: boolean;
+  };
+};
+
 export type SidebarContent = {
   title: string;
   products: Array<{
