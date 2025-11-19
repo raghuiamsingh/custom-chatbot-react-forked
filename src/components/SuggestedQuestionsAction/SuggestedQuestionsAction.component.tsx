@@ -181,7 +181,7 @@ export const SuggestedQuestionsAction: React.FC<
 
   // Animation variants for panel
   const panelVariants = {
-    hidden: { opacity: 0, y: 10, scale: 0.95 },
+    hidden: { opacity: 0, y: -10, scale: 0.95 },
     visible: {
       opacity: 1,
       y: 0,
@@ -193,7 +193,7 @@ export const SuggestedQuestionsAction: React.FC<
     },
     exit: {
       opacity: 0,
-      y: 10,
+      y: -10,
       scale: 0.95,
       transition: {
         duration: 0.15,
@@ -248,13 +248,14 @@ export const SuggestedQuestionsAction: React.FC<
       {/* Expanded Panel */}
       <AnimatePresence>
         {isExpanded && (
-          <motion.div
-            className="fixed bottom-28 left-6 right-6 max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50"
-            variants={panelVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[90vw] sm:w-[85vw] md:w-[80vw] max-w-4xl z-50 pointer-events-none">
+            <motion.div
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 pointer-events-auto"
+              variants={panelVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
             {/* Header with Refresh Button */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -298,7 +299,7 @@ export const SuggestedQuestionsAction: React.FC<
             {/* Questions Grid with Swipe Gestures */}
             <div className="relative overflow-hidden">
               <div
-                className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
@@ -308,19 +309,19 @@ export const SuggestedQuestionsAction: React.FC<
                     <motion.button
                       key={`${currentSetIndex}-${index}`}
                       onClick={() => handleQuestionClick(question)}
-                      className="min-h-[120px] min-w-[200px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center p-4"
+                      className="h-auto min-h-[80px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center p-3"
                       variants={tileVariants}
                       initial="hidden"
                       animate="visible"
                     >
-                      <span className="text-sm md:text-base font-medium text-gray-800 dark:text-gray-200 text-center leading-relaxed">
+                      <span className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-200 text-center leading-relaxed">
                         {question}
                       </span>
                     </motion.button>
                   ))
                 ) : (
                   <motion.div
-                    className="col-span-full min-h-[120px] flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm"
+                    className="col-span-full min-h-[80px] flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm"
                     variants={tileVariants}
                     initial="hidden"
                     animate="visible"
@@ -349,7 +350,8 @@ export const SuggestedQuestionsAction: React.FC<
                 </div>
               )}
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

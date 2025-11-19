@@ -118,28 +118,31 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
         onRemoveSuggestions={handleRemoveSuggestions}
       />
 
-      {/* Suggested Questions Action - floating style */}
-      {state.messages.length > 0 && (
-        <div className="px-6 py-3 transition-colors duration-300 ease-in-out">
-          <div className="flex justify-center">
-            <SuggestedQuestionsAction
-              onQuestionClick={sendMessage}
-              onRefresh={handleRefreshSuggestions}
-              questions={getSuggestedQuestions()}
-              isLoading={state.isLoadingSuggestions}
-              context={getSuggestionsContext()}
-              initData={initData}
-            />
+      {/* Suggested Questions Action and Input Bar Container with Glass Effect */}
+      <div className="sticky bottom-0 backdrop-blur-2xl bg-transparent border-t border-white/20 dark:border-gray-700/30 shadow-2xl shadow-black/10 dark:shadow-black/30 transition-colors duration-300 ease-in-out">
+        {/* Suggested Questions Action - floating style */}
+        {state.messages.length > 0 && (
+          <div className="px-6 py-3">
+            <div className="flex justify-center">
+              <SuggestedQuestionsAction
+                onQuestionClick={sendMessage}
+                onRefresh={handleRefreshSuggestions}
+                questions={getSuggestedQuestions()}
+                isLoading={state.isLoadingSuggestions}
+                context={getSuggestionsContext()}
+                initData={initData}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <InputBar
-        onSendMessage={sendMessage}
-        disabled={state.isLoading}
-        isLoading={state.isLoading}
-        onCancel={cancelRequest}
-      />
+        <InputBar
+          onSendMessage={sendMessage}
+          disabled={state.isLoading}
+          isLoading={state.isLoading}
+          onCancel={cancelRequest}
+        />
+      </div>
 
       {/* Sidebar */}
       <Sidebar
