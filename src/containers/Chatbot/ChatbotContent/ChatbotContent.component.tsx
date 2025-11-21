@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { ChatWindow, InputBar, SettingsDropdown, Sidebar, StructuredContentTester, SuggestedQuestionsAction, ThemeToggle } from "@components";
+import { ChatWindow, InputBar, Sidebar, StructuredContentTester, SuggestedQuestionsAction, ThemeToggle } from "@components";
 import { useChat } from "@contexts";
 import Logo from "@assets/logo.png";
 
@@ -53,16 +53,17 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
       {/* Header - floating style */}
       <div className="px-6 py-4 transition-colors duration-300 ease-in-out">
         <div className="flex justify-between items-center mx-auto">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <img
               src={Logo}
               alt="GetHealthy Assistant Logo"
-              className="w-8 h-8"
+              style={{ width: '3rem', height: 'auto' }}
             />
             <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 transition-colors duration-300 ease-in-out">
               GetHealthy Assistant
             </h1>
           </div>
+
           <div className="flex items-center gap-2">
             {isThemeRequired && <ThemeToggle />}
             {/* New Chat Button */}
@@ -87,16 +88,6 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
               </svg>
               <span className="text-sm font-medium">New Chat</span>
             </button>
-            <SettingsDropdown
-              debugMode={state.debugMode}
-              onDebugModeChange={(debugMode) =>
-                dispatch({ type: "SET_DEBUG_MODE", payload: debugMode })
-              }
-              showContentTester={state.showContentTester}
-              onContentTesterToggle={(show) =>
-                dispatch({ type: "SET_SHOW_CONTENT_TESTER", payload: show })
-              }
-            />
           </div>
         </div>
       </div>
@@ -116,12 +107,13 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
         onQuestionClick={sendMessage}
         onViewRecommendations={handleViewRecommendations}
         onRemoveSuggestions={handleRemoveSuggestions}
+        isLoading={state.isLoading}
       />
 
       {/* Suggested Questions Action and Input Bar Container with Glass Effect */}
       <div className="sticky bottom-0 backdrop-blur-2xl bg-transparent border-t border-white/20 dark:border-gray-700/30 shadow-2xl shadow-black/10 dark:shadow-black/30 transition-colors duration-300 ease-in-out">
         {/* Suggested Questions Action - floating style */}
-        {state.messages.length > 0 && (
+        {state.messages.length > 0 && !state.isLoading && (
           <div className="px-6 py-3">
             <div className="flex justify-center">
               <SuggestedQuestionsAction

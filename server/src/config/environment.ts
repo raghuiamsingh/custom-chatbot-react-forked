@@ -20,7 +20,6 @@ export interface BotDojoConfig {
 export interface ServerConfig {
   port: number;
   nodeEnv: string;
-  corsOrigins: string[];
 }
 
 // BotDojo configuration (for mediaBase only - credentials come from request body as initData field)
@@ -37,14 +36,4 @@ export const botdojoConfig: BotDojoConfig = {
 export const serverConfig: ServerConfig = {
   port: parseInt(process.env.PORT || "3001", 10),
   nodeEnv: process.env.NODE_ENV || "development",
-  corsOrigins: process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(",")
-    : [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://gethealthy.local:9190",
-        "http://localhost:5005",
-        "http://app.gethealthyscript.local:5005",
-        "http://chatbot-demo-alb-895393060.us-east-1.elb.amazonaws.com",
-      ],
 };

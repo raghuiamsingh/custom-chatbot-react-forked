@@ -8,6 +8,7 @@ interface ChatWindowProps {
   onQuestionClick?: (question: string) => void;
   onViewRecommendations?: (messageId: string) => void;
   onRemoveSuggestions?: (messageId: string) => void;
+  isLoading?: boolean;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -16,19 +17,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onQuestionClick,
   onViewRecommendations,
   onRemoveSuggestions,
+  isLoading = false,
 }) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll when a bot response is received (last message is from bot)
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === "bot" && lastMessage.type !== "typing") {
+        // Scroll 20px down smoothly
+        scrollContainerRef.current?.scrollBy({
+          top: 20,
+          behavior: "smooth",
+        });
+      }
+    }
   }, [messages]);
 
   return (
     <div
+      ref={scrollContainerRef}
       className="flex-1 overflow-y-auto"
       role="log"
       aria-label="Chat conversation"
@@ -70,12 +79,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     ].map((question, index) => (
                       <button
                         key={index}
-                        onClick={() => onQuestionClick(question)}
-                        className="w-full text-left p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 ease-in-out group focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        onClick={() => !isLoading && onQuestionClick(question)}
+                        disabled={isLoading}
+                        className="w-full text-left p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 ease-in-out group focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800"
                         aria-label={`Ask: ${question}`}
                         type="button"
                       >
-                        <span className="text-gray-800 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200">
+                        <span className={`transition-colors duration-200 ${isLoading ? 'text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-gray-100'}`}>
                           {question}
                         </span>
                       </button>
@@ -97,12 +107,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   onQuestionClick={onQuestionClick}
                   onViewRecommendations={onViewRecommendations}
                   onRemoveSuggestions={onRemoveSuggestions}
+                  isLoading={isLoading}
                 />
               </div>
             ))}
           </div>
         )}
-        <div ref={messagesEndRef} aria-hidden="true" />
       </div>
     </div>
   );

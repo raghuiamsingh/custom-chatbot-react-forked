@@ -42,8 +42,7 @@ app.use('/suggestions', limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: serverConfig.corsOrigins,
-  credentials: true,
+  origin: '*',
   allowedHeaders: ['Content-Type', 'X-Request-ID', 'Authorization'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));

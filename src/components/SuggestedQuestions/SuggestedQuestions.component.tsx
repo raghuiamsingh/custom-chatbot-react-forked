@@ -5,6 +5,7 @@ interface SuggestedQuestionsProps {
   onQuestionClick: (question: string) => void;
   questions?: string[];
   variant?: "onboarding" | "dynamic";
+  disabled?: boolean;
 }
 
 export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
@@ -17,6 +18,7 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
     "Are there supplements for energy and focus?",
   ],
   variant = "onboarding",
+  disabled = false,
 }) => {
   // Animation variants for onboarding
   const containerVariants = {
@@ -110,7 +112,7 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
         >
           {/* Related Questions Header */}
           <motion.div
-            className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3"
+            className={`text-sm font-medium mb-3 transition-colors duration-200 ${disabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}
             variants={pillVariants}
           >
             Related Questions
@@ -120,14 +122,15 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
             {questions.map((question, index) => (
               <motion.button
                 key={`${question}-${index}`}
-                onClick={() => onQuestionClick(question)}
-                className="w-full text-left p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 ease-in-out group"
+                onClick={() => !disabled && onQuestionClick(question)}
+                disabled={disabled}
+                className="w-full text-left p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 ease-in-out group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800"
                 variants={pillVariants}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                whileHover={disabled ? {} : { scale: 1.01 }}
+                whileTap={disabled ? {} : { scale: 0.99 }}
                 aria-label={`Ask: ${question}`}
               >
-                <span className="text-gray-800 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200">
+                <span className={`transition-colors duration-200 ${disabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-gray-100'}`}>
                   {question}
                 </span>
               </motion.button>
@@ -162,11 +165,12 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
             {questions.map((question, index) => (
               <motion.button
                 key={index}
-                onClick={() => onQuestionClick(question)}
-                className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium text-sm sm:text-base rounded-full shadow-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-300 ease-in-out text-left"
+                onClick={() => !disabled && onQuestionClick(question)}
+                disabled={disabled}
+                className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium text-sm sm:text-base rounded-full shadow-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-300 ease-in-out text-left disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500"
                 variants={buttonVariants}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={disabled ? {} : { scale: 1.02 }}
+                whileTap={disabled ? {} : { scale: 0.98 }}
                 aria-label={`Ask: ${question}`}
               >
                 {question}

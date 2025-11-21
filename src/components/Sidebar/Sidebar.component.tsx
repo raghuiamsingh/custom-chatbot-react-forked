@@ -30,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     switch (structuredContent.type) {
       case "product":
-        return "Recommended Supplements";
+        return "Recommended Products";
       case "guide":
         return "Guide";
       case "faq":
@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Sidebar */}
           <motion.aside
-            className="sidebar-container fixed top-0 right-0 w-full md:w-[400px] bg-white dark:bg-neutral-900 border-l border-gray-200 dark:border-neutral-800 shadow-xl md:shadow-2xl"
+            className="sidebar-container fixed top-0 right-0 w-full md:w-[700px] bg-white dark:bg-neutral-900 border-l border-gray-200 dark:border-neutral-800 shadow-xl md:shadow-2xl"
             style={{ zIndex }}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}

@@ -23,6 +23,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const productImage = imageUrl;
 
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
+    if (!sku) return;
+
     // Dispatch custom event with SKU for external application handling
     const event = new CustomEvent('customChatbotProductSelected', {
       detail: { sku },
@@ -36,7 +38,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     <div className="group relative flex flex-row items-stretch gap-5 p-5 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-sm dark:shadow-gray-900/50 border border-gray-100 dark:border-gray-700/50 hover:shadow-md dark:hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-200 ease-out overflow-hidden">
       {/* Decorative gradient overlay on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 to-purple-50/0 dark:from-blue-900/0 dark:to-purple-900/0 group-hover:from-blue-50/10 group-hover:to-purple-50/5 dark:group-hover:from-blue-900/5 dark:group-hover:to-purple-900/5 transition-all duration-200 pointer-events-none" />
-      
+
       {/* Product Image - Left Side */}
       <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl overflow-hidden ring-1 ring-gray-200/50 dark:ring-gray-700/50 group-hover:ring-gray-300/50 dark:group-hover:ring-gray-600/50 transition-all duration-200">
         {productImage ? (
@@ -160,26 +162,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     </div>
   );
 
-  // Make entire card clickable if SKU exists
-  if (sku) {
-    return (
-      <div
-        onClick={handleCardClick}
-        className="cursor-pointer rounded-2xl"
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleCardClick(e);
-          }
-        }}
-        aria-label={`View product: ${displayTitle}`}
-      >
-        {cardContent}
-      </div>
-    );
-  }
+  return (
+    <div
+      onClick={handleCardClick}
+      className="cursor-pointer rounded-2xl"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick(e);
+        }
+      }}
+      aria-label={`View product: ${displayTitle}`}
+    >
+      {cardContent}
+    </div>
+  );
 
   return cardContent;
 };
