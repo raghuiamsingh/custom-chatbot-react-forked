@@ -10,7 +10,7 @@ interface ChatbotContentProps {
   maxHeight?: number;
 }
 
-export const ChatbotContent: React.FC<ChatbotContentProps> = ({ 
+export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   isThemeRequired = false,
   baseFontSize = 16,
   sidebarZIndex = 50,
@@ -43,15 +43,15 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   } = useChat();
 
   return (
-    <div 
+    <div
       className="chatbot-container flex flex-col h-screen bg-[#FDFDFC] dark:bg-[#0D1117] font-sans transition-colors duration-300 ease-in-out"
       style={{
         '--chatbot-font-base': `${baseFontSize}px`,
         ...(maxHeight && { maxHeight: `${maxHeight}px` })
       } as React.CSSProperties}
     >
-      {/* Header - floating style */}
-      <div className="px-6 py-4 transition-colors duration-300 ease-in-out">
+      {/* Header - 100% width */}
+      <div className="w-full px-6 py-4 transition-colors duration-300 ease-in-out">
         <div className="flex justify-between items-center mx-auto">
           <div className="flex items-center gap-2">
             <img
@@ -60,7 +60,7 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
               style={{ width: '3rem', height: 'auto' }}
             />
             <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 transition-colors duration-300 ease-in-out">
-              GetHealthy Assistant
+              Product Discovery by JAINE
             </h1>
           </div>
 
@@ -92,48 +92,51 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
         </div>
       </div>
 
-      {/* Structured Content Tester - show when enabled in settings */}
-      {state.showContentTester && (
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <StructuredContentTester
-            onTestContent={handleTestStructuredContent}
-          />
-        </div>
-      )}
-
-      <ChatWindow
-        messages={state.messages}
-        onButtonClick={handleButtonClick}
-        onQuestionClick={sendMessage}
-        onViewRecommendations={handleViewRecommendations}
-        onRemoveSuggestions={handleRemoveSuggestions}
-        isLoading={state.isLoading}
-      />
-
-      {/* Suggested Questions Action and Input Bar Container with Glass Effect */}
-      <div className="sticky bottom-0 backdrop-blur-2xl bg-transparent border-t border-white/20 dark:border-gray-700/30 shadow-2xl shadow-black/10 dark:shadow-black/30 transition-colors duration-300 ease-in-out">
-        {/* Suggested Questions Action - floating style */}
-        {state.messages.length > 0 && !state.isLoading && (
-          <div className="px-6 py-3">
-            <div className="flex justify-center">
-              <SuggestedQuestionsAction
-                onQuestionClick={sendMessage}
-                onRefresh={handleRefreshSuggestions}
-                questions={getSuggestedQuestions()}
-                isLoading={state.isLoadingSuggestions}
-                context={getSuggestionsContext()}
-                initData={initData}
-              />
-            </div>
+      {/* Main Content and Input Field Container - max-width 80rem */}
+      <div className="flex-1 flex flex-col max-w-[80rem] w-full mx-auto">
+        {/* Structured Content Tester - show when enabled in settings */}
+        {state.showContentTester && (
+          <div className="px-6 py-4">
+            <StructuredContentTester
+              onTestContent={handleTestStructuredContent}
+            />
           </div>
         )}
 
-        <InputBar
-          onSendMessage={sendMessage}
-          disabled={state.isLoading}
+        <ChatWindow
+          messages={state.messages}
+          onButtonClick={handleButtonClick}
+          onQuestionClick={sendMessage}
+          onViewRecommendations={handleViewRecommendations}
+          onRemoveSuggestions={handleRemoveSuggestions}
           isLoading={state.isLoading}
-          onCancel={cancelRequest}
         />
+
+        {/* Suggested Questions Action and Input Bar Container with Glass Effect */}
+        <div className="sticky bottom-0 backdrop-blur-2xl bg-transparent border-t border-white/20 dark:border-gray-700/30 transition-colors duration-300 ease-in-out">
+          {/* Suggested Questions Action - floating style */}
+          {state.messages.length > 0 && !state.isLoading && (
+            <div className="px-6 py-3">
+              <div className="flex justify-center">
+                <SuggestedQuestionsAction
+                  onQuestionClick={sendMessage}
+                  onRefresh={handleRefreshSuggestions}
+                  questions={getSuggestedQuestions()}
+                  isLoading={state.isLoadingSuggestions}
+                  context={getSuggestionsContext()}
+                  initData={initData}
+                />
+              </div>
+            </div>
+          )}
+
+          <InputBar
+            onSendMessage={sendMessage}
+            disabled={state.isLoading}
+            isLoading={state.isLoading}
+            onCancel={cancelRequest}
+          />
+        </div>
       </div>
 
       {/* Sidebar */}

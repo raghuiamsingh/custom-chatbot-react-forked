@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { encryptInitData } from "../../utils/encryption";
 import { buildApiUrl } from "../../utils/apiUrl";
+import { generateSuggestedQuestionSets } from "../../utils/constants";
 
 interface InitData {
   BOTDOJO_API_KEY: string;
@@ -92,24 +93,8 @@ export const SuggestedQuestionsAction: React.FC<
       setCurrentSetIndex(data.currentSetIndex || 0);
     } catch (error) {
       console.error("Error loading suggestion sets:", error);
-      // Fallback to default sets
-      setSuggestionSets([
-        [
-          "What supplements can help with sleep?",
-          "What can I take for stress?",
-          "How do I support my immune system?",
-        ],
-        [
-          "What vitamins should I take daily?",
-          "Are there supplements for energy and focus?",
-          "What helps with digestion?",
-        ],
-        [
-          "What are natural-only options?",
-          "Which supplements support recovery?",
-          "What helps with heart health?",
-        ],
-      ]);
+      // Fallback to default sets using the constant
+      setSuggestionSets(generateSuggestedQuestionSets(3));
     } finally {
       setIsLoadingSets(false);
     }

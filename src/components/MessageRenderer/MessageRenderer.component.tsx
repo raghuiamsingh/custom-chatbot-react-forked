@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { MessageBubble, ButtonGroup, TypingIndicator, SuggestedQuestions, ProductCard } from "@components";
 import { type Message, type Product } from "@types";
+import { parseMarkdownBold } from "@utils/constants";
 
 interface MessageRendererProps {
   message: Message;
@@ -51,7 +52,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
         {message.type === "text" && (
           <div className="px-4 py-3">
             <div className="text-base leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap transition-colors duration-300 ease-in-out">
-              {message.content.text}
+              {parseMarkdownBold(message.content.text)}
             </div>
 
             {/* Show products button to open canvas if structured content is available */}

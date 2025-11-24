@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { MessageRenderer } from "@components";
 import { type Message } from "@types";
+import { INTRODUCTION_MESSAGE, parseMarkdownBold, getRandomSuggestedQuestions } from "@utils/constants";
 
 interface ChatWindowProps {
   messages: Message[];
@@ -50,14 +51,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             {/* Introduction Message */}
             <div className="px-4 py-3" role="banner">
               <div className="text-base leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap transition-colors duration-300 ease-in-out">
-                Hi, I'm your supplement discovery assistant. I can help you find
-                the right products based on your goals, health concerns, or
-                ingredient preferences. Whether you're curious about which
-                supplements support sleep, stress relief, immune health, or
-                energy, I'll guide you toward options that match your needs. You
-                can ask about specific conditions, ingredients, or general
-                wellness goals — and I'll provide tailored product
-                recommendations.
+                {parseMarkdownBold(INTRODUCTION_MESSAGE)}
               </div>
             </div>
 
@@ -71,12 +65,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     role="group"
                     aria-label="Suggested starter questions"
                   >
-                    {[
-                      "What supplements can help with sleep?",
-                      "What can I take for stress?",
-                      "How do I support my immune system?",
-                      "What are the best energy supplements?",
-                    ].map((question, index) => (
+                    {getRandomSuggestedQuestions().map((question, index) => (
                       <button
                         key={index}
                         onClick={() => !isLoading && onQuestionClick(question)}

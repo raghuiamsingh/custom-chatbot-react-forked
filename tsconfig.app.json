@@ -39,6 +39,8 @@
       "@contexts/*": ["src/contexts/*"],
       "@types": ["src/types"],
       "@types/*": ["src/types/*"],
+      "@utils": ["src/utils"],
+      "@utils/*": ["src/utils/*"],
       "@assets/*": ["src/assets/*"]
     }
   },

@@ -3,6 +3,7 @@ import type { Message, SidebarState, ChatResponse, Product } from "@types";
 import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
 import { buildApiUrl } from "../utils/apiUrl";
+import { INTRODUCTION_MESSAGE } from "@utils/constants";
 
 // State interfaces
 interface ChatState {
@@ -148,7 +149,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         role: "bot",
         type: "text",
         content: {
-          text: "Hi, I'm your supplement discovery assistant. I can help you find the right products based on your goals, health concerns, or ingredient preferences. Whether you're curious about which supplements support sleep, stress relief, immune health, or energy, I'll guide you toward options that match your needs.\n\nYou can ask about specific conditions, ingredients, or general wellness goals — and I'll provide tailored product recommendations.",
+          text: INTRODUCTION_MESSAGE,
         },
       };
 

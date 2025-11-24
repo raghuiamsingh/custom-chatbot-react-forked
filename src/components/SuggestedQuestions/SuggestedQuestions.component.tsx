@@ -1,5 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getRandomSuggestedQuestions } from "../../utils/constants";
 
 interface SuggestedQuestionsProps {
   onQuestionClick: (question: string) => void;
@@ -10,16 +11,12 @@ interface SuggestedQuestionsProps {
 
 export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
   onQuestionClick,
-  questions = [
-    "What supplements can help with sleep?",
-    "What can I take for stress?",
-    "How do I support my immune system?",
-    "What vitamins should I take daily?",
-    "Are there supplements for energy and focus?",
-  ],
+  questions,
   variant = "onboarding",
   disabled = false,
 }) => {
+  // Use provided questions or generate random ones from categories
+  const displayQuestions = questions || getRandomSuggestedQuestions();
   // Animation variants for onboarding
   const containerVariants = {
     hidden: { opacity: 0, y: 10 },
@@ -119,7 +116,7 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
           </motion.div>
 
           <motion.div className="grid gap-3" variants={pillContainerVariants}>
-            {questions.map((question, index) => (
+            {displayQuestions.map((question, index) => (
               <motion.button
                 key={`${question}-${index}`}
                 onClick={() => !disabled && onQuestionClick(question)}
@@ -162,7 +159,7 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
             className="flex flex-col gap-y-2 max-w-lg mx-auto"
             variants={containerVariants}
           >
-            {questions.map((question, index) => (
+            {displayQuestions.map((question, index) => (
               <motion.button
                 key={index}
                 onClick={() => !disabled && onQuestionClick(question)}
