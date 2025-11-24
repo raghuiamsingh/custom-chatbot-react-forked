@@ -93,7 +93,7 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
       </div>
 
       {/* Main Content and Input Field Container - max-width 80rem */}
-      <div className="flex-1 flex flex-col max-w-[80rem] w-full mx-auto">
+      <div className="flex-1 flex flex-col max-w-[80rem] w-full mx-auto overflow-y-auto">
         {/* Structured Content Tester - show when enabled in settings */}
         {state.showContentTester && (
           <div className="px-6 py-4">
@@ -112,8 +112,8 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
           isLoading={state.isLoading}
         />
 
-        {/* Suggested Questions Action and Input Bar Container with Glass Effect */}
-        <div className="sticky bottom-0 backdrop-blur-2xl bg-transparent border-t border-white/20 dark:border-gray-700/30 transition-colors duration-300 ease-in-out">
+        {/* Suggested Questions Action and Input Bar Container */}
+        <div className="sticky bottom-0 bg-[#FDFDFC] dark:bg-[#0D1117] border-t border-gray-200 dark:border-gray-700 transition-colors duration-300 ease-in-out">
           {/* Suggested Questions Action - floating style */}
           {state.messages.length > 0 && !state.isLoading && (
             <div className="px-6 py-3">
