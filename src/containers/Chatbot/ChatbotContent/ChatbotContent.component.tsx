@@ -100,61 +100,67 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
         </div>
       </div>
 
-      {/* Main Content and Input Field Container - max-width 80rem */}
-      <div className="flex-1 flex flex-col max-w-[80rem] w-full mx-auto overflow-y-auto">
-        {/* Structured Content Tester - show when enabled in settings */}
-        {state.showContentTester && (
-          <div className="px-6 py-4">
-            <StructuredContentTester
-              onTestContent={handleTestStructuredContent}
-            />
-          </div>
-        )}
-
-        <ChatWindow
-          messages={state.messages}
-          onButtonClick={handleButtonClick}
-          onQuestionClick={sendMessage}
-          onViewRecommendations={handleViewRecommendations}
-          onRemoveSuggestions={handleRemoveSuggestions}
-          isLoading={state.isLoading}
-        />
-
-        {/* Suggested Questions Action and Input Bar Container */}
-        <div className="sticky bottom-0 bg-[#FDFDFC] dark:bg-[#0D1117] border-t border-gray-200 dark:border-gray-700 transition-colors duration-300 ease-in-out">
-          {/* Suggested Questions Action - floating style */}
-          {state.messages.length > 0 && !state.isLoading && (
-            <div className="px-6 py-3">
-              <div className="flex justify-center">
-                <SuggestedQuestionsAction
-                  onQuestionClick={sendMessage}
-                  onRefresh={handleRefreshSuggestions}
-                  questions={getSuggestedQuestions()}
-                  isLoading={state.isLoadingSuggestions}
-                  context={getSuggestionsContext()}
-                  initData={initData}
+      {/* Main Content and Sidebar Container */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Wrapper to center main content and place sidebar beside it */}
+        <div className="flex w-full justify-center">
+          {/* Main Content and Input Field Container - max-width 80rem */}
+          <div className="flex flex-col max-w-[80rem] w-full h-full overflow-y-auto flex-shrink-0">
+            {/* Structured Content Tester - show when enabled in settings */}
+            {state.showContentTester && (
+              <div className="px-6 py-4">
+                <StructuredContentTester
+                  onTestContent={handleTestStructuredContent}
                 />
               </div>
-            </div>
-          )}
+            )}
 
-          <InputBar
-            onSendMessage={sendMessage}
-            disabled={state.isLoading}
-            isLoading={state.isLoading}
-            onCancel={cancelRequest}
+            <ChatWindow
+              messages={state.messages}
+              onButtonClick={handleButtonClick}
+              onQuestionClick={sendMessage}
+              onViewRecommendations={handleViewRecommendations}
+              onRemoveSuggestions={handleRemoveSuggestions}
+              isLoading={state.isLoading}
+            />
+
+            {/* Suggested Questions Action and Input Bar Container */}
+            <div className="sticky bottom-0 bg-[#FDFDFC] dark:bg-[#0D1117] transition-colors duration-300 ease-in-out">
+              {/* Suggested Questions Action - floating style */}
+              {/* {state.messages.length > 0 && !state.isLoading && (
+                <div className="px-6 py-3">
+                  <div className="flex justify-center">
+                    <SuggestedQuestionsAction
+                      onQuestionClick={sendMessage}
+                      onRefresh={handleRefreshSuggestions}
+                      questions={getSuggestedQuestions()}
+                      isLoading={state.isLoadingSuggestions}
+                      context={getSuggestionsContext()}
+                      initData={initData}
+                    />
+                  </div>
+                </div>
+              )} */}
+
+              <InputBar
+                onSendMessage={sendMessage}
+                disabled={state.isLoading}
+                isLoading={state.isLoading}
+                onCancel={cancelRequest}
+              />
+            </div>
+          </div>
+
+          {/* Sidebar - beside main content, taking its own space */}
+          <Sidebar
+            isOpen={state.sidebarState.isOpen}
+            onClose={handleCloseSidebar}
+            messageId={state.sidebarState.messageId}
+            messages={state.messages}
+            zIndex={sidebarZIndex}
           />
         </div>
       </div>
-
-      {/* Sidebar */}
-      <Sidebar
-        isOpen={state.sidebarState.isOpen}
-        onClose={handleCloseSidebar}
-        messageId={state.sidebarState.messageId}
-        messages={state.messages}
-        zIndex={sidebarZIndex}
-      />
     </div>
   );
 };

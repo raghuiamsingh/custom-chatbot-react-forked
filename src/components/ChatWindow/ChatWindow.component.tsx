@@ -39,7 +39,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div
       ref={scrollContainerRef}
-      className="flex-1 overflow-y-auto min-h-0"
+      className="flex-1 overflow-y-auto min-h-0 chatbot-content-scroll"
       role="log"
       aria-label="Chat conversation"
       aria-live="polite"

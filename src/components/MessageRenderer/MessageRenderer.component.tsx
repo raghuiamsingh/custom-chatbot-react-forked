@@ -55,7 +55,6 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
               {parseMarkdownBold(message.content.text)}
             </div>
 
-            {/* Show products button to open canvas if structured content is available */}
             {message.structured &&
               message.structured.type === "product" &&
               message.structured.data.length > 0 && (
@@ -72,10 +71,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
                       whileTap={{ scale: 0.98 }}
                       aria-label="Open Canvas to view recommended products"
                     >
-                      {/* Animated background gradient */}
                       <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                      {/* Content */}
                       <span className="relative z-10 flex items-center gap-2">
                         <svg
                           className="w-5 h-5"
@@ -137,7 +134,6 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
           </div>
         )}
 
-        {/* Dynamic Suggested Questions */}
         {message.suggestedQuestions &&
           message.suggestedQuestions.length > 0 &&
           onQuestionClick && (

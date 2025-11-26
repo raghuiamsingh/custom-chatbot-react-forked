@@ -107,12 +107,12 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
           animate="visible"
           exit="exit"
         >
-          {/* Related Questions Header */}
+          {/* Suggested Questions Header */}
           <motion.div
             className={`text-sm font-medium mb-3 transition-colors duration-200 ${disabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}
             variants={pillVariants}
           >
-            Related Questions
+            Suggested Questions
           </motion.div>
 
           <motion.div className="grid gap-3" variants={pillContainerVariants}>

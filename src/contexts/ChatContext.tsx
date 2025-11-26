@@ -302,6 +302,8 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       type: "SET_SIDEBAR_STATE",
       payload: { isOpen: true, messageId },
     });
+    // Dispatch custom event when sidebar is opened
+    window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
   };
 
   const handleCloseSidebar = () => {
@@ -309,6 +311,8 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       type: "SET_SIDEBAR_STATE",
       payload: { isOpen: false, messageId: null },
     });
+    // Dispatch custom event when sidebar is closed
+    window.dispatchEvent(new CustomEvent('chatbotRecommendationsClosed'));
   };
 
   const handleTestStructuredContent = async (contentType: string) => {

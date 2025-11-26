@@ -47,28 +47,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const title = getTitle();
+  const hasContent = structuredContent && structuredContent.data.length > 0;
+  const shouldShow = isOpen && hasContent;
+  
   return (
-    <AnimatePresence>
-      {isOpen && structuredContent && structuredContent.data.length > 0 && (
-        <>
-          {/* Mobile Overlay */}
+    <aside
+      className={`sidebar-container flex-shrink-0 bg-white dark:bg-neutral-900 flex flex-col h-full overflow-hidden ${
+        shouldShow ? "border-l border-gray-200 dark:border-neutral-800" : ""
+      }`}
+      style={{ 
+        zIndex,
+        width: shouldShow ? "500px" : "0",
+        transition: "width 0.3s ease-in-out"
+      }}
+    >
+      <AnimatePresence>
+        {shouldShow && (
           <motion.div
-            className="fixed inset-0 bg-black bg-opacity-50 md:hidden"
-            style={{ zIndex: zIndex - 10 }}
+            className="flex flex-col h-full w-[500px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-
-          {/* Sidebar */}
-          <motion.aside
-            className="sidebar-container fixed top-0 right-0 w-full md:w-[700px] bg-white dark:bg-neutral-900 border-l border-gray-200 dark:border-neutral-800 shadow-xl md:shadow-2xl"
-            style={{ zIndex }}
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            transition={{ duration: 0.2 }}
           >
             {/* Fixed Header */}
             <div className="flex-shrink-0 bg-white dark:bg-neutral-900 border-b border-gray-100 dark:border-neutral-800 px-4 py-3 flex items-center justify-between">
@@ -78,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={onClose}
                 className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                aria-label="Close sidebar"
+                aria-label="Collapse sidebar"
               >
                 <svg
                   className="w-5 h-5"
@@ -104,9 +104,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 data={structuredContent.data}
               />
             </div>
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </aside>
   );
 };
