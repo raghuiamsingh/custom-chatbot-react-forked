@@ -212,8 +212,9 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         const chatResponse = data as ChatResponse;
         
         // Create bot message with text content
+        const botMessageId = generateId();
         const botMessage: Message = {
-          id: generateId(),
+          id: botMessageId,
           role: "bot",
           type: "text",
           content: { text: chatResponse.text },
@@ -225,6 +226,16 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         };
 
         dispatch({ type: "ADD_MESSAGE", payload: botMessage });
+        
+        // Automatically open sidebar if products are present
+        if (chatResponse.products.length > 0) {
+          dispatch({
+            type: "SET_SIDEBAR_STATE",
+            payload: { isOpen: true, messageId: botMessageId },
+          });
+          // Dispatch custom event when sidebar is opened
+          window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
+        }
       } 
       // Handle legacy response format (messages array)
       else if (data.messages && Array.isArray(data.messages)) {
@@ -238,17 +249,42 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         }));
 
         dispatch({ type: "ADD_MESSAGES", payload: botMessages });
+        
+        // Automatically open sidebar if any message has products
+        const messageWithProducts = botMessages.find(
+          (msg) => msg.structured?.type === 'product' && msg.structured.data?.length > 0
+        );
+        if (messageWithProducts) {
+          dispatch({
+            type: "SET_SIDEBAR_STATE",
+            payload: { isOpen: true, messageId: messageWithProducts.id },
+          });
+          // Dispatch custom event when sidebar is opened
+          window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
+        }
       } else {
         // Fallback for single message response
+        const botMessageId = generateId();
         const botMessage: Message = {
-          id: generateId(),
+          id: botMessageId,
           role: "bot",
           type: (data as any).type || "text",
           content: (data as any).content || "Sorry, I could not process your message.",
           suggestedQuestions: (data as any).suggestedQuestions || undefined,
+          structured: (data as any).structured || undefined,
         };
 
         dispatch({ type: "ADD_MESSAGE", payload: botMessage });
+        
+        // Automatically open sidebar if structured content with products is present
+        if (botMessage.structured?.type === 'product' && botMessage.structured.data?.length > 0) {
+          dispatch({
+            type: "SET_SIDEBAR_STATE",
+            payload: { isOpen: true, messageId: botMessageId },
+          });
+          // Dispatch custom event when sidebar is opened
+          window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
+        }
       }
     } catch (error) {
       console.error("Error sending message:", error);

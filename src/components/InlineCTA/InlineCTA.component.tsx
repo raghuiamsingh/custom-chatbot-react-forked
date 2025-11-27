@@ -36,7 +36,7 @@ export const InlineCTA: React.FC<InlineCTAProps> = ({
   const getActionLabel = () => {
     switch (contentType) {
       case "product":
-        return "View Recommendations";
+        return "View Products";
       case "guide":
         return "View Guide";
       case "faq":
