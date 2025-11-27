@@ -57,14 +57,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }`}
       style={{ 
         zIndex,
-        width: shouldShow ? "500px" : "0",
+        width: shouldShow ? "550px" : "0",
         transition: "width 0.3s ease-in-out"
       }}
     >
       <AnimatePresence>
         {shouldShow && (
           <motion.div
-            className="flex flex-col h-full w-[500px]"
+            className="flex flex-col h-full w-[550px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

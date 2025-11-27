@@ -210,7 +210,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       // Handle new response format (text, suggestedQuestions, products)
       if ('text' in data && 'products' in data) {
         const chatResponse = data as ChatResponse;
-        
+
         // Create bot message with text content
         const botMessageId = generateId();
         const botMessage: Message = {
@@ -226,7 +226,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         };
 
         dispatch({ type: "ADD_MESSAGE", payload: botMessage });
-        
+
         // Automatically open sidebar if products are present
         if (chatResponse.products.length > 0) {
           dispatch({
@@ -236,7 +236,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
           // Dispatch custom event when sidebar is opened
           window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
         }
-      } 
+      }
       // Handle legacy response format (messages array)
       else if (data.messages && Array.isArray(data.messages)) {
         const botMessages: Message[] = data.messages.map((msg: any) => ({
@@ -249,7 +249,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         }));
 
         dispatch({ type: "ADD_MESSAGES", payload: botMessages });
-        
+
         // Automatically open sidebar if any message has products
         const messageWithProducts = botMessages.find(
           (msg) => msg.structured?.type === 'product' && msg.structured.data?.length > 0
@@ -275,7 +275,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         };
 
         dispatch({ type: "ADD_MESSAGE", payload: botMessage });
-        
+
         // Automatically open sidebar if structured content with products is present
         if (botMessage.structured?.type === 'product' && botMessage.structured.data?.length > 0) {
           dispatch({
@@ -331,6 +331,9 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
 
   const handleNewChat = () => {
     dispatch({ type: "RESET_CHAT" });
+
+    // Dispatch custom event when sidebar is closed
+    window.dispatchEvent(new CustomEvent('chatbotRecommendationsClosed'));
   };
 
   const handleViewRecommendations = (messageId: string) => {
