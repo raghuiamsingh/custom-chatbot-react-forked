@@ -139,6 +139,108 @@ export const parseMarkdownBold = (text: string): React.ReactNode => {
 };
 
 /**
+ * Parse JSON from streamed text and extract the text field
+ * Handles JSON wrapped in markdown code blocks (```json ... ```) or plain JSON
+ * @param text - Raw text that may contain JSON
+ * @returns Clean text content extracted from JSON, or original text if not JSON
+ */
+export const parseStreamedText = (text: string): string => {
+  if (!text) return '';
+  
+  let jsonString: string | null = null;
+  const trimmed = text.trim();
+  
+  // Pattern 1: Try matching markdown code blocks with json label
+  const markdownJsonPattern = /```json\s*\n?([\s\S]*?)\n?```/;
+  const markdownMatch = text.match(markdownJsonPattern);
+  if (markdownMatch && markdownMatch[1]) {
+    jsonString = markdownMatch[1].trim();
+  }
+  
+  // Pattern 2: Try matching markdown code blocks with escaped newlines
+  if (!jsonString) {
+    const escapedMarkdownPattern = /```json\\n([\s\S]*?)\\n```/;
+    const escapedMatch = text.match(escapedMarkdownPattern);
+    if (escapedMatch && escapedMatch[1]) {
+      jsonString = escapedMatch[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\')
+        .trim();
+    }
+  }
+  
+  // Pattern 3: Try matching markdown code blocks without json label
+  if (!jsonString) {
+    const codeBlockPattern = /```\s*\n?([\s\S]*?)\n?```/;
+    const codeBlockMatch = text.match(codeBlockPattern);
+    if (codeBlockMatch && codeBlockMatch[1]) {
+      const potentialJson = codeBlockMatch[1].trim();
+      if (potentialJson.startsWith('{') || potentialJson.startsWith('[')) {
+        jsonString = potentialJson;
+      }
+    }
+  }
+  
+  // Pattern 4: Try matching escaped code blocks without json label
+  if (!jsonString) {
+    const escapedCodeBlockPattern = /```\\n([\s\S]*?)\\n```/;
+    const escapedCodeMatch = text.match(escapedCodeBlockPattern);
+    if (escapedCodeMatch && escapedCodeMatch[1]) {
+      const potentialJson = escapedCodeMatch[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\')
+        .trim();
+      if (potentialJson.startsWith('{') || potentialJson.startsWith('[')) {
+        jsonString = potentialJson;
+      }
+    }
+  }
+  
+  // Pattern 5: Try parsing the whole thing as JSON (no markdown wrapper)
+  if (!jsonString) {
+    jsonString = trimmed;
+  }
+  
+  // Try to parse the extracted JSON
+  if (jsonString) {
+    try {
+      const parsed = JSON.parse(jsonString);
+      
+      if (parsed.text && typeof parsed.text === 'string') {
+        return parsed.text;
+      }
+      
+      // If it's JSON but doesn't have a text field, return empty (don't show raw JSON)
+      return '';
+    } catch (e) {
+      // JSON parsing failed - might be partial JSON or plain text
+      // If it looks like JSON (starts with { or [), don't return it
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        // Try to find JSON objects within the text
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.text && typeof parsed.text === 'string') {
+              return parsed.text;
+            }
+          } catch (e2) {
+            // Not valid JSON
+          }
+        }
+        // Looks like JSON but can't parse - return empty to avoid showing raw JSON
+        return '';
+      }
+    }
+  }
+  
+  // If we can't parse as JSON, return the text as-is (might be plain text tokens)
+  return text;
+};
+
+/**
  * Utility function to randomly select 4 unique categories and 1 question from each
  * @returns Array of 4 questions, one from each randomly selected category
  */

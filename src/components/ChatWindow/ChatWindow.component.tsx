@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { MessageRenderer } from "@components";
 import { type Message } from "@types";
 import { INTRODUCTION_MESSAGE, parseMarkdownBold, getRandomSuggestedQuestions } from "@utils/constants";
@@ -10,17 +10,61 @@ interface ChatWindowProps {
   onViewRecommendations?: (messageId: string) => void;
   onRemoveSuggestions?: (messageId: string) => void;
   isLoading?: boolean;
+  onScrollChange?: (isNearBottom: boolean) => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({
+export interface ChatWindowRef {
+  scrollToBottom: () => void;
+  isNearBottom: () => boolean;
+}
+
+export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
   messages,
   onButtonClick,
   onQuestionClick,
   onViewRecommendations,
   onRemoveSuggestions,
   isLoading = false,
-}) => {
+  onScrollChange,
+}, ref) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const isNearBottom = () => {
+    if (!scrollContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const threshold = 100; // Consider "near bottom" if within 100px
+    return scrollHeight - scrollTop - clientHeight < threshold;
+  };
+
+  useImperativeHandle(ref, () => ({
+    scrollToBottom,
+    isNearBottom,
+  }));
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (onScrollChange) {
+        onScrollChange(isNearBottom());
+      }
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll);
+      // Initial check
+      handleScroll();
+      return () => container.removeEventListener("scroll", handleScroll);
+    }
+  }, [onScrollChange]);
 
   useEffect(() => {
     // Only scroll when a bot response is received (last message is from bot)
@@ -39,7 +83,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div
       ref={scrollContainerRef}
-      className="flex-1 overflow-y-auto min-h-0 chatbot-content-scroll"
+      className="flex-1 overflow-y-auto min-h-0 chatbot-content-scroll break-words"
       role="log"
       aria-label="Chat conversation"
       aria-live="polite"
@@ -105,4 +149,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
     </div>
   );
-};
+});
+
+ChatWindow.displayName = "ChatWindow";

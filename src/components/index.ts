@@ -1,5 +1,5 @@
 export { ButtonGroup } from "./ButtonGroup";
-export { ChatWindow } from "./ChatWindow";
+export { ChatWindow, type ChatWindowRef } from "./ChatWindow";
 export { InlineCTA } from "./InlineCTA";
 export { InputBar } from "./InputBar";
 export { MessageBubble } from "./MessageBubble";

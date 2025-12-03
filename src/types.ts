@@ -8,6 +8,8 @@ export type Message = {
     type: 'product' | 'guide' | 'faq' | 'labResult' | 'image' | 'linkList';
     data: any[];
   }; // Optional structured content for sidebar with content type
+  isLoadingProducts?: boolean; // Loading state for products
+  isLoadingSuggestions?: boolean; // Loading state for suggested questions
 };
 
 export type Product = {

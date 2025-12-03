@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { ChatWindow, InputBar, Sidebar, StructuredContentTester, SuggestedQuestionsAction, ThemeToggle } from "@components";
+import React, { useEffect, useRef, useState } from "react";
+import { ChatWindow, InputBar, Sidebar, StructuredContentTester, SuggestedQuestionsAction, ThemeToggle, type ChatWindowRef } from "@components";
 import { useChat } from "@contexts";
 
 interface ChatbotContentProps {
@@ -15,6 +15,9 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   sidebarZIndex = 50,
   maxHeight
 }) => {
+  const chatWindowRef = useRef<ChatWindowRef>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
   // Ensure light theme is default when theme toggle is not required
   useEffect(() => {
     if (!isThemeRequired) {
@@ -40,6 +43,22 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
     getSuggestionsContext,
     dispatch,
   } = useChat();
+
+  const handleScrollToBottom = () => {
+    chatWindowRef.current?.scrollToBottom();
+  };
+
+  const handleScrollChange = (isNearBottom: boolean) => {
+    setShowScrollButton(!isNearBottom && state.messages.length > 0);
+  };
+
+  // Update scroll button visibility when messages change
+  useEffect(() => {
+    if (chatWindowRef.current) {
+      const isNearBottom = chatWindowRef.current.isNearBottom();
+      setShowScrollButton(!isNearBottom && state.messages.length > 0);
+    }
+  }, [state.messages.length]);
 
   return (
     <div
@@ -116,16 +135,18 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
             )}
 
             <ChatWindow
+              ref={chatWindowRef}
               messages={state.messages}
               onButtonClick={handleButtonClick}
               onQuestionClick={sendMessage}
               onViewRecommendations={handleViewRecommendations}
               onRemoveSuggestions={handleRemoveSuggestions}
               isLoading={state.isLoading}
+              onScrollChange={handleScrollChange}
             />
 
             {/* Suggested Questions Action and Input Bar Container */}
-            <div className="sticky bottom-0 bg-[#FDFDFC] dark:bg-[#0D1117] transition-colors duration-300 ease-in-out">
+            <div className="sticky bottom-0 bg-[#FDFDFC] dark:bg-[#0D1117] transition-colors duration-300 ease-in-out relative">
               {/* Suggested Questions Action - floating style */}
               {/* {state.messages.length > 0 && !state.isLoading && (
                 <div className="px-6 py-3">
@@ -141,6 +162,32 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
                   </div>
                 </div>
               )} */}
+
+              {/* Scroll to Bottom Button */}
+              {showScrollButton && (
+                <div className="absolute left-1/2 transform -translate-x-1/2 bottom-full mb-6 bg-transparent pointer-events-none">
+                  <button
+                    onClick={handleScrollToBottom}
+                    className="p-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-700 hover:scale-110 active:scale-95 transition-all duration-200 ease-in-out focus:outline-none flex items-center justify-center pointer-events-auto scroll-to-bottom-btn"
+                    aria-label="Scroll to bottom"
+                  >
+                    <svg
+                      className="w-7 h-7"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )}
 
               <InputBar
                 onSendMessage={sendMessage}

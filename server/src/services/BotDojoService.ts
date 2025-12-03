@@ -38,8 +38,11 @@ export default class BotDojoService {
    */
   async sendMessage(message: string, options: any = {}): Promise<BotDojoResponse> {
     const endpoint = `${this.baseUrl}/accounts/${this.accountId}/projects/${this.projectId}/flows/${this.flowId}/run`;
-    
+
     const requestBody = {
+      options: {
+        stream: 'http'
+      },
       body: {
         text_input: message,
         ...options
@@ -70,7 +73,222 @@ export default class BotDojoService {
       throw new Error(`BotDojo API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    return await response.json() as BotDojoResponse;
+    // Handle streaming response - read as stream and log chunks as they arrive
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullResponseText = '';
+    let lastValidJson: any = null;
+
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        // Decode the chunk
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+        fullResponseText += chunk;
+        
+        // Try to parse complete JSON objects from the stream (NDJSON format)
+        const lines = buffer.split('\n');
+        
+        // Process all complete lines (except the last one which might be incomplete)
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          try {
+            const parsed = JSON.parse(line);
+            lastValidJson = parsed;
+          } catch (e) {
+            // Skip invalid JSON lines
+          }
+        }
+        
+        // Keep the last (possibly incomplete) line for the next iteration
+        buffer = lines[lines.length - 1];
+      }
+      
+      // Process any remaining text in buffer
+      if (buffer.trim()) {
+        try {
+          const parsed = JSON.parse(buffer.trim());
+          lastValidJson = parsed;
+        } catch (e) {
+          // If buffer doesn't parse, try the full response as single JSON
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    // Try to parse as JSON
+    let botdojoResponse: BotDojoResponse;
+    
+    if (lastValidJson) {
+      botdojoResponse = lastValidJson as BotDojoResponse;
+    } else {
+      // Fallback: try parsing the entire response text as a single JSON object
+      try {
+        botdojoResponse = JSON.parse(fullResponseText.trim()) as BotDojoResponse;
+      } catch (parseError) {
+        throw new Error(`Failed to parse BotDojo response as JSON. Raw response (first 500 chars): ${fullResponseText.substring(0, 500)}`);
+      }
+    }
+
+    return botdojoResponse;
+  }
+
+  /**
+   * Stream BotDojo response with callback for each chunk
+   * @param message - User message
+   * @param onChunk - Callback function called for each chunk received
+   * @param options - Additional options
+   * @returns Promise that resolves with the final response
+   */
+  async streamMessage(
+    message: string,
+    onChunk: (chunk: string) => void,
+    options: any = {}
+  ): Promise<BotDojoResponse> {
+    const endpoint = `${this.baseUrl}/accounts/${this.accountId}/projects/${this.projectId}/flows/${this.flowId}/run`;
+
+    const requestBody = {
+      options: {
+        stream: 'http'
+      },
+      body: {
+        text_input: message,
+        ...options
+      }
+    };
+
+    // Trim API key to remove any whitespace
+    const trimmedApiKey = this.apiKey?.trim() || this.apiKey;
+
+    // BotDojo API authentication - according to docs, use Authorization header without Bearer prefix
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+
+    // BotDojo requires API key in Authorization header (no Bearer prefix)
+    if (trimmedApiKey) {
+      headers['Authorization'] = trimmedApiKey;
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`BotDojo API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    // Handle streaming response - read as stream and parse NDJSON format
+    // BotDojo sends NDJSON: each line is a complete JSON object
+    // Events have format: {"tag":"onNewToken","data":{"token":"..."}}
+    // Final response has no tag: {"status":"complete","response":{...}}
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullResponseText = '';
+    let lastValidJson: any = null;
+
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        // Decode the chunk
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+        fullResponseText += chunk;
+        
+        // Parse NDJSON format - each line is a complete JSON object
+        const lines = buffer.split('\n');
+        
+        // Process all complete lines (except the last one which might be incomplete)
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          try {
+            const event = JSON.parse(line);
+            lastValidJson = event;
+            
+            // Handle different event types according to BotDojo API docs
+            if (event.tag === 'onNewToken') {
+              // Extract token from onNewToken event and forward to callback
+              const token = event.data?.token || '';
+              if (token) {
+                onChunk(token);
+              }
+            }
+            // Other events (onLog, onIntermediateStepUpdate, etc.) are ignored
+            // Final response (no tag) will be returned at the end
+          } catch (e) {
+            // Skip invalid JSON lines
+          }
+        }
+        
+        // Keep the last (possibly incomplete) line for the next iteration
+        buffer = lines[lines.length - 1];
+      }
+      
+      // Process any remaining text in buffer (final response)
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer.trim());
+          lastValidJson = event;
+          
+          // Handle final response or any remaining events
+          if (event.tag === 'onNewToken') {
+            const token = event.data?.token || '';
+            if (token) {
+              onChunk(token);
+            }
+          }
+        } catch (e) {
+          // If buffer doesn't parse, it might be incomplete - that's okay
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    // Try to parse as JSON
+    let botdojoResponse: BotDojoResponse;
+    
+    if (lastValidJson) {
+      botdojoResponse = lastValidJson as BotDojoResponse;
+    } else {
+      // Fallback: try parsing the entire response text as a single JSON object
+      try {
+        botdojoResponse = JSON.parse(fullResponseText.trim()) as BotDojoResponse;
+      } catch (parseError) {
+        throw new Error(`Failed to parse BotDojo response as JSON. Raw response (first 500 chars): ${fullResponseText.substring(0, 500)}`);
+      }
+    }
+
+    return botdojoResponse;
   }
 
   /**
@@ -88,16 +306,16 @@ export default class BotDojoService {
       const parsedContent = this.parseTextOutput(botdojoResponse.response.text_output);
       textContent = parsedContent.text;
       suggestedQuestions = parsedContent.suggestedQuestions;
-      
+
       // Process products from parsed content
       if (parsedContent.products && Array.isArray(parsedContent.products)) {
         parsedContent.products.forEach((product: any) => {
           const sku = product.sku || '';
           const productId = product.productId || product.id || '';
           // Ensure productUrl has a valid URL, with fallback
-          const productUrl = product.productUrl || product.url || 
+          const productUrl = product.productUrl || product.url ||
             (sku ? `https://uat.gethealthy.store/botdojo/product?sku=${sku}${productId ? `&pid=${productId}` : ''}` : '');
-          
+
           products.push({
             sku: sku,
             name: product.name || product.title || `Product: ${sku}`,
@@ -121,10 +339,10 @@ export default class BotDojoService {
     // Also extract products from steps if available
     if (botdojoResponse.aiMessage && botdojoResponse.aiMessage.steps) {
       const steps = botdojoResponse.aiMessage.steps;
-      const productCardSteps = steps.filter(step => 
+      const productCardSteps = steps.filter(step =>
         step.stepLabel === 'ShowProductCardTool' && step.arguments
       );
-      
+
       productCardSteps.forEach(step => {
         try {
           const args = JSON.parse(step.arguments!);
@@ -135,7 +353,7 @@ export default class BotDojoService {
               const raw = step.canvas?.canvasData?.url || '';
               const normalized = normalizeImageUrl(raw);
               const safeImageUrl = isLikelyImage(normalized) ? normalized : '';
-              
+
               products.push({
                 sku: args.sku,
                 name: args.name || `Product: ${args.sku}`,
@@ -223,24 +441,24 @@ export default class BotDojoService {
   private normalizeStepsResponse(botdojoResponse: BotDojoResponse): ChatMessage[] {
     const messages: ChatMessage[] = [];
     const steps = botdojoResponse.aiMessage!.steps;
-    
+
     // Extract product cards from ShowProductCardTool steps
-    const productCardSteps = steps.filter(step => 
+    const productCardSteps = steps.filter(step =>
       step.stepLabel === 'ShowProductCardTool' && step.arguments
     );
-    
+
     // Collect all structured content (products) for the text message
     const allStructuredContent: StructuredContentItem[] = [];
-    
+
     // Extract text content and parse canvas data
     let textContent = '';
     let suggestedQuestions: string[] = [];
-    
+
     if (botdojoResponse.response && botdojoResponse.response.text_output) {
       const parsedContent = this.parseTextOutput(botdojoResponse.response.text_output);
       textContent = parsedContent.text;
       suggestedQuestions = parsedContent.suggestedQuestions;
-      
+
       // Process products into structured content
       if (parsedContent.products && Array.isArray(parsedContent.products)) {
         parsedContent.products.forEach(product => {
@@ -257,7 +475,7 @@ export default class BotDojoService {
         });
       }
     }
-    
+
     // Add product cards (normalized to unified product format)
     productCardSteps.forEach(step => {
       try {
@@ -279,7 +497,7 @@ export default class BotDojoService {
         // Silently skip invalid product card arguments
       }
     });
-    
+
     // Parse canvas data directly into structured content
     const canvasProducts = parseCanvasDataForStructuredContent(textContent);
     allStructuredContent.push(...canvasProducts);
@@ -298,12 +516,12 @@ export default class BotDojoService {
         type: 'text',
         content: { text: textContent }
       };
-      
+
       // Add suggested questions if available
       if (suggestedQuestions.length > 0) {
         textMessage.suggestedQuestions = suggestedQuestions;
       }
-      
+
       // Add structured content if we have products
       if (dedupedBySku.length > 0) {
         textMessage.structured = {
@@ -311,10 +529,10 @@ export default class BotDojoService {
           data: dedupedBySku
         };
       }
-      
+
       messages.push(textMessage);
     }
-    
+
     // Look for buttons in the response
     const buttonOptions = ['Energy', 'Immunity', 'Vitamins', 'Minerals', 'Performance', 'Recovery'];
     if (textContent && textContent.toLowerCase().includes('specific purpose')) {
@@ -322,18 +540,18 @@ export default class BotDojoService {
         id: this.generateMessageId(),
         role: 'bot',
         type: 'buttons',
-        content: { 
+        content: {
           text: 'Would you like supplements for a specific purpose?',
           options: buttonOptions
         }
       });
     }
-    
+
     // Extract suggested questions from BotDojo response
     if (botdojoResponse.suggestedQuestions && Array.isArray(botdojoResponse.suggestedQuestions)) {
       suggestedQuestions = botdojoResponse.suggestedQuestions;
     }
-    
+
     // Add suggested questions to the last bot message if any exist
     if (suggestedQuestions.length > 0 && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
@@ -341,7 +559,7 @@ export default class BotDojoService {
         lastMessage.suggestedQuestions = suggestedQuestions;
       }
     }
-    
+
     return messages;
   }
 
@@ -358,7 +576,7 @@ export default class BotDojoService {
 
     // First, try to extract JSON from markdown code blocks
     let jsonString: string | null = null;
-    
+
     // Pattern 1: Try matching markdown code blocks with actual newlines
     // Pattern: ```json followed by content and closing ```
     // Handle both with and without newlines after ```json
@@ -367,7 +585,7 @@ export default class BotDojoService {
     if (markdownMatch && markdownMatch[1]) {
       jsonString = markdownMatch[1].trim();
     }
-    
+
     // Pattern 2: Try matching markdown code blocks with escaped newlines (\\n)
     // This handles cases where the text field contains escaped markdown: "```json\\n{...}\\n```"
     if (!jsonString) {
@@ -382,7 +600,7 @@ export default class BotDojoService {
           .trim();
       }
     }
-    
+
     // Pattern 3: Try matching markdown code blocks without json label (just ```)
     if (!jsonString) {
       const codeBlockPattern = /```\s*\n?([\s\S]*?)\n?```/;
@@ -395,7 +613,7 @@ export default class BotDojoService {
         }
       }
     }
-    
+
     // Pattern 4: Try matching escaped code blocks without json label
     if (!jsonString) {
       const escapedCodeBlockPattern = /```\\n([\s\S]*?)\\n```/;
@@ -411,7 +629,7 @@ export default class BotDojoService {
         }
       }
     }
-    
+
     // Pattern 5: Just try to parse the whole thing as JSON (no markdown wrapper)
     if (!jsonString) {
       jsonString = textOutput.trim();
@@ -421,13 +639,13 @@ export default class BotDojoService {
     if (jsonString) {
       try {
         const parsedContent = JSON.parse(jsonString);
-        
+
         if (parsedContent.text && typeof parsedContent.text === 'string') {
           textContent = parsedContent.text;
           if (parsedContent.suggestedQuestions && Array.isArray(parsedContent.suggestedQuestions)) {
             suggestedQuestions = parsedContent.suggestedQuestions;
           }
-          
+
           // Process products into structured content
           if (parsedContent.products && Array.isArray(parsedContent.products)) {
             products = parsedContent.products;
@@ -510,7 +728,7 @@ export default class BotDojoService {
     const messages: ChatMessage[] = [];
     let textContent = botdojoResponse.response!.text_output;
     let suggestedQuestions: string[] = [];
-    
+
     // Try to parse JSON format with text and suggestedQuestions
     try {
       const parsedContent = JSON.parse(textContent);
@@ -523,12 +741,12 @@ export default class BotDojoService {
     } catch (e) {
       // Not JSON, use text as-is
     }
-    
+
     // Clean up canvas references from text content
     if (suggestedQuestions.length === 0) {
       textContent = cleanTextContent(textContent);
     }
-    
+
     if (textContent) {
       const message: ChatMessage = {
         id: this.generateMessageId(),
@@ -536,14 +754,14 @@ export default class BotDojoService {
         type: 'text',
         content: { text: textContent }
       };
-      
+
       if (suggestedQuestions.length > 0) {
         message.suggestedQuestions = suggestedQuestions;
       }
-      
+
       messages.push(message);
     }
-    
+
     return messages;
   }
 
@@ -554,15 +772,15 @@ export default class BotDojoService {
    */
   private normalizeStepsArrayResponse(botdojoResponse: BotDojoResponse): ChatMessage[] {
     const messages: ChatMessage[] = [];
-    
-    const outputStep = botdojoResponse.steps!.find(step => 
+
+    const outputStep = botdojoResponse.steps!.find(step =>
       step.stepLabel === 'Output' && step.content
     );
-    
+
     if (outputStep && outputStep.content) {
       let textContent = outputStep.content;
       let suggestedQuestions: string[] = [];
-      
+
       try {
         const parsedContent = JSON.parse(textContent);
         if (parsedContent.text && typeof parsedContent.text === 'string') {
@@ -574,11 +792,11 @@ export default class BotDojoService {
       } catch (e) {
         // Not JSON, use text as-is
       }
-      
+
       if (suggestedQuestions.length === 0) {
         textContent = cleanTextContent(textContent);
       }
-      
+
       if (textContent) {
         const message: ChatMessage = {
           id: this.generateMessageId(),
@@ -586,15 +804,15 @@ export default class BotDojoService {
           type: 'text',
           content: { text: textContent }
         };
-        
+
         if (suggestedQuestions.length > 0) {
           message.suggestedQuestions = suggestedQuestions;
         }
-        
+
         messages.push(message);
       }
     }
-    
+
     return messages;
   }
 
@@ -605,13 +823,13 @@ export default class BotDojoService {
    */
   private normalizeOutputArrayResponse(botdojoResponse: BotDojoResponse): ChatMessage[] {
     const messages: ChatMessage[] = [];
-    
+
     botdojoResponse.output!.forEach(output => {
       if (output.type === 'text') {
         let textContent = output.text || output.content || '';
-        
+
         textContent = cleanTextContent(textContent);
-        
+
         if (textContent) {
           messages.push({
             id: this.generateMessageId(),
@@ -655,7 +873,7 @@ export default class BotDojoService {
         });
       }
     });
-    
+
     return messages;
   }
 
@@ -688,7 +906,7 @@ export default class BotDojoService {
    */
   extractSuggestedQuestions(botdojoResponse: BotDojoResponse): string[][] {
     const suggestions: string[][] = [];
-    
+
     // Try to extract from different possible locations in BotDojo response
     if (botdojoResponse.suggestedQuestions && Array.isArray(botdojoResponse.suggestedQuestions)) {
       // Direct suggestions array
@@ -704,16 +922,16 @@ export default class BotDojoService {
         return grouped;
       }
     }
-    
+
     // Try to extract from aiMessage.steps
     if (botdojoResponse.aiMessage && botdojoResponse.aiMessage.steps) {
       const steps = botdojoResponse.aiMessage.steps;
-      
+
       // Look for steps with suggestion data
-      const suggestionSteps = steps.filter(step => 
+      const suggestionSteps = steps.filter(step =>
         step.stepLabel && step.stepLabel.toLowerCase().includes('suggestion')
       );
-      
+
       if (suggestionSteps.length > 0) {
         suggestionSteps.forEach(step => {
           if (step.content) {
@@ -733,20 +951,20 @@ export default class BotDojoService {
         });
       }
     }
-    
+
     // Try to extract from response.text_output
     if (botdojoResponse.response && botdojoResponse.response.text_output) {
       const text = botdojoResponse.response.text_output;
-      
+
       // Look for patterns like "Suggested Questions:" followed by lists
       const suggestionMatches = text.match(/suggested questions?:?\s*([\s\S]*?)(?=\n\n|\n[A-Z]|$)/gi);
-      
+
       if (suggestionMatches) {
         suggestionMatches.forEach(match => {
           const lines = match.split('\n')
             .map(line => line.replace(/^[-•*]\s*/, '').trim())
             .filter(line => line.length > 0 && !line.toLowerCase().includes('suggested questions'));
-          
+
           if (lines.length > 0) {
             // Group into sets of 3
             for (let i = 0; i < lines.length; i += 3) {
@@ -756,13 +974,13 @@ export default class BotDojoService {
         });
       }
     }
-    
+
     // If no suggestions found, return default sets
     if (suggestions.length === 0) {
       return [
         [
           "What supplements can help with sleep?",
-          "What can I take for stress?", 
+          "What can I take for stress?",
           "How do I support my immune system?"
         ],
         [
@@ -777,7 +995,7 @@ export default class BotDojoService {
         ]
       ];
     }
-    
+
     return suggestions;
   }
 }

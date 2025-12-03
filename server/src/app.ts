@@ -245,41 +245,63 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
       debug: {
         rawBotDojoResponse: cachedResponse,
         endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
-        requestBody: { body: { text_input: sanitizedMessage } },
+        requestBody: {
+          options: {
+            stream: 'http'
+          },
+          body: {
+            text_input: sanitizedMessage
+          }
+        },
         cached: true
       }
     });
   }
 
-  // Call BotDojo API
-  const botdojoResponse = await service.sendMessage(sanitizedMessage);
+  // Set up Server-Sent Events for streaming
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+  
+  // Flush headers immediately to start the stream
+  if (typeof (res as any).flushHeaders === 'function') {
+    (res as any).flushHeaders();
+  }
 
-  // Cache the response
-  cacheManager.setBotDojoResponse(sanitizedMessage, botdojoResponse, undefined, 300); // 5 minutes
+  try {
+    // Stream BotDojo API response to frontend
+    // BotDojo sends tokens via onNewToken events, we extract and forward each token
+    const botdojoResponse = await service.streamMessage(sanitizedMessage, (token: string) => {
+      // Send token to frontend as SSE immediately
+      // token is already extracted from onNewToken event, just the text
+      const sseData = `data: ${JSON.stringify({ type: 'chunk', data: token })}\n\n`;
+      res.write(sseData);
+      
+      // Force flush if available (Node.js streams)
+      if (typeof (res as any).flush === 'function') {
+        (res as any).flush();
+      }
+    });
 
-  // Log the raw BotDojo response
-  logger.botdojoResponse(
-    `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
-    botdojoResponse,
-    { requestId }
-  );
+    // Transform the final response to extract products and suggested questions
+    const transformedResponse = service.transformToNewFormat(botdojoResponse);
 
-  // Transform to new format
-  const transformedResponse = service.transformToNewFormat(botdojoResponse);
-  logger.chatResponse([{ id: 'transformed', role: 'bot', type: 'text', content: { text: transformedResponse.text } }], { requestId });
-
-  // Return new response format with raw data for browser console
-  res.json({
-    text: transformedResponse.text,
-    suggestedQuestions: transformedResponse.suggestedQuestions,
-    products: transformedResponse.products,
-    debug: {
-      rawBotDojoResponse: botdojoResponse,
-      endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
-      requestBody: { body: { text_input: sanitizedMessage } },
-      cached: false
-    }
-  });
+    // Send final response with products and suggested questions
+    res.write(`data: ${JSON.stringify({ 
+      type: 'done', 
+      response: {
+        text: transformedResponse.text,
+        products: transformedResponse.products,
+        suggestedQuestions: transformedResponse.suggestedQuestions
+      }
+    })}\n\n`);
+    res.end();
+  } catch (error) {
+    // Send error to frontend
+    res.write(`data: ${JSON.stringify({ type: 'error', error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`);
+    res.end();
+  }
 }));
 
 // Debug endpoint to see raw BotDojo response

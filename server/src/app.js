@@ -160,7 +160,14 @@ app.post('/chat', async (req, res) => {
       debug: {
         rawBotDojoResponse: botdojoResponse,
         endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
-        requestBody: { body: { text_input: message.trim() } }
+        requestBody: {
+          options: {
+            stream: 'http'
+          },
+          body: {
+            text_input: message.trim()
+          }
+        }
       }
     });
 

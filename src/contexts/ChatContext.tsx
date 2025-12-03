@@ -3,7 +3,7 @@ import type { Message, SidebarState, ChatResponse, Product } from "@types";
 import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
 import { buildApiUrl } from "../utils/apiUrl";
-import { INTRODUCTION_MESSAGE } from "@utils/constants";
+import { INTRODUCTION_MESSAGE, parseStreamedText } from "@utils/constants";
 
 // State interfaces
 interface ChatState {
@@ -22,6 +22,7 @@ type ChatAction =
   | { type: "SET_MESSAGES"; payload: Message[] }
   | { type: "ADD_MESSAGE"; payload: Message }
   | { type: "ADD_MESSAGES"; payload: Message[] }
+  | { type: "UPDATE_MESSAGE"; payload: Partial<Message> & { id: string } }
   | { type: "REMOVE_TYPING_INDICATOR" }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_LOADING_SUGGESTIONS"; payload: boolean }
@@ -56,6 +57,16 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case "ADD_MESSAGES":
       return { ...state, messages: [...state.messages, ...action.payload] };
+
+    case "UPDATE_MESSAGE":
+      return {
+        ...state,
+        messages: state.messages.map((msg) =>
+          msg.id === action.payload.id
+            ? { ...msg, ...action.payload }
+            : msg
+        ),
+      };
 
     case "REMOVE_TYPING_INDICATOR":
       return {
@@ -202,90 +213,409 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         throw new Error("Failed to send message");
       }
 
-      const data: ChatResponse | { messages?: Message[] } = await response.json();
+      // Handle streaming response (Server-Sent Events format)
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error("Response body is not readable");
+      }
 
-      // Remove typing indicator and add real bot messages
+      // Create a bot message for streaming content
+      const botMessageId = generateId();
+      let accumulatedRawText = ''; // Raw accumulated text (may contain JSON)
+      let buffer = '';
+      let shouldStopStreamingText = false; // Flag to stop streaming text when we hit other keys
+      let currentTextValue = ''; // Current extracted text value
+      
+      const botMessage: Message = {
+        id: botMessageId,
+        role: "bot",
+        type: "text",
+        content: { text: '' },
+        isLoadingProducts: true, // Show loading state for products
+        isLoadingSuggestions: true, // Show loading state for suggestions
+      };
+      
+      dispatch({ type: "ADD_MESSAGE", payload: botMessage });
       dispatch({ type: "REMOVE_TYPING_INDICATOR" });
+      
+      // Helper function to extract text value from partial JSON incrementally
+      const extractTextFromPartialJson = (jsonStr: string): string => {
+        if (shouldStopStreamingText) {
+          return currentTextValue; // Don't update if we've hit other keys
+        }
+        
+        // Check if we've hit "suggestedQuestions" or "products" keys (before "text" value ends)
+        // Look for these keys appearing after the text field
+        const textEndPattern = /"text"\s*:\s*"[^"]*"/;
+        const hasTextEnd = textEndPattern.test(jsonStr);
+        
+        if (hasTextEnd && (jsonStr.includes('"suggestedQuestions"') || jsonStr.includes('"products"'))) {
+          shouldStopStreamingText = true;
+        }
+        
+        // Try parsing as complete JSON first (most reliable if JSON is complete)
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (parsed && typeof parsed === 'object' && 'text' in parsed && typeof parsed.text === 'string') {
+            return parsed.text;
+          }
+        } catch (e) {
+          // JSON incomplete, try regex extraction
+        }
+        
+        // Try to find the "text" field value using regex (for partial JSON)
+        // Pattern: "text": "value" - handle escaped quotes and newlines
+        // Match from "text": " to the closing quote (handling escaped quotes)
+        const textPattern = /"text"\s*:\s*"((?:[^"\\]|\\.)*)"/;
+        const match = jsonStr.match(textPattern);
+        
+        if (match && match[1]) {
+          // Unescape the string value
+          const unescaped = match[1]
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+            .replace(/\\t/g, '\t')
+            .replace(/\\\\/g, '\\');
+          return unescaped;
+        }
+        
+        // Try to find incomplete text value (text field started but not closed yet)
+        // Pattern: "text": "value... (no closing quote yet)
+        const incompleteTextPattern = /"text"\s*:\s*"((?:[^"\\]|\\.)*)$/;
+        const incompleteMatch = jsonStr.match(incompleteTextPattern);
+        
+        if (incompleteMatch && incompleteMatch[1]) {
+          // Unescape the partial string value
+          const unescaped = incompleteMatch[1]
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+            .replace(/\\t/g, '\t')
+            .replace(/\\\\/g, '\\');
+          return unescaped;
+        }
+        
+        return currentTextValue;
+      };
 
+      // Read stream chunks and parse SSE format
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        // Decode chunk
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+        
+        // Parse SSE format: lines starting with "data: " followed by JSON
+        // SSE format is: "data: {...}\n\n" (double newline separates events)
+        const events = buffer.split('\n\n');
+        
+        // Process complete events (keep last incomplete event in buffer)
+        // Process events one at a time to ensure UI updates are visible
+        for (let i = 0; i < events.length - 1; i++) {
+          const event = events[i].trim();
+          
+          if (event.startsWith('data: ')) {
+            try {
+              const jsonStr = event.substring(6); // Remove "data: " prefix
+              const data = JSON.parse(jsonStr);
+              
+              if (data.type === 'chunk') {
+                // Accumulate the chunk data (data.data is the text token from onNewToken)
+                const token = typeof data.data === 'string' ? data.data : '';
+                if (token && !shouldStopStreamingText) {
+                  accumulatedRawText += token;
+                  
+                  // Extract text value incrementally from JSON as it streams
+                  const trimmed = accumulatedRawText.trim();
+                  
+                  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                    // Looks like JSON - extract text value incrementally
+                    const extractedText = extractTextFromPartialJson(accumulatedRawText);
+                    
+                    if (extractedText && extractedText !== currentTextValue) {
+                      currentTextValue = extractedText;
+                      
+                      // Update the message immediately with the current text (streaming in real-time)
+                      dispatch({
+                        type: "UPDATE_MESSAGE",
+                        payload: {
+                          id: botMessageId,
+                          content: { text: extractedText }
+                        }
+                      });
+                    }
+                  } else {
+                    // Not JSON - treat as plain text and display directly
+                    // This handles the case where tokens are just plain text
+                    currentTextValue = accumulatedRawText;
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        content: { text: accumulatedRawText }
+                      }
+                    });
+                  }
+                }
+              } else if (data.type === 'done') {
+                // Stream complete - process final response for products and suggestions
+                
+                // Final parse of accumulated text to ensure we have the complete "text" field
+                const trimmed = accumulatedRawText.trim();
+                if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                  try {
+                    const parsed = JSON.parse(accumulatedRawText);
+                    if (parsed && typeof parsed === 'object' && 'text' in parsed && typeof parsed.text === 'string') {
+                      // Update with final complete text value
+                      currentTextValue = parsed.text;
+                      dispatch({
+                        type: "UPDATE_MESSAGE",
+                        payload: {
+                          id: botMessageId,
+                          content: { text: currentTextValue }
+                        }
+                      });
+                    }
+                  } catch (e) {
+                    // JSON parsing failed - text should already be displayed from streaming
+                  }
+                }
+                
+                // Process final response for products and suggested questions
+                if (data.response) {
+                  const { products = [], suggestedQuestions = [] } = data.response;
+                  
+                  // Show suggestedQuestions immediately when available
+                  if (suggestedQuestions.length > 0) {
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        suggestedQuestions: suggestedQuestions,
+                        isLoadingSuggestions: false, // Hide loader now that suggestions are ready
+                      }
+                    });
+                  }
+                  
+                  // Show products when response ends
+                  if (products.length > 0) {
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        structured: {
+                          type: 'product',
+                          data: products
+                        },
+                        isLoadingProducts: false, // Hide loader now that products are ready
+                      }
+                    });
+
+                    // Automatically open sidebar if products are present
+                    dispatch({
+                      type: "SET_SIDEBAR_STATE",
+                      payload: { isOpen: true, messageId: botMessageId },
+                    });
+                    window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
+                  } else {
+                    // No products - hide loading state
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        isLoadingProducts: false,
+                      }
+                    });
+                  }
+                  
+                  // If no suggestedQuestions in response, hide loading state
+                  if (suggestedQuestions.length === 0) {
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        isLoadingSuggestions: false,
+                      }
+                    });
+                  }
+                } else {
+                  // No response data - hide loading states
+                  dispatch({
+                    type: "UPDATE_MESSAGE",
+                    payload: {
+                      id: botMessageId,
+                      isLoadingProducts: false,
+                      isLoadingSuggestions: false,
+                    }
+                  });
+                }
+              } else if (data.type === 'error') {
+                console.error('Stream error:', data.error);
+                throw new Error(data.error || 'Stream error');
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e, event.substring(0, 100));
+            }
+          }
+        }
+        
+        // Keep the last (possibly incomplete) event for next iteration
+        buffer = events[events.length - 1];
+      }
+      
+      // Process any remaining buffer
+      if (buffer.trim()) {
+        const line = buffer.trim();
+        if (line.startsWith('data: ')) {
+          try {
+            const jsonStr = line.substring(6);
+            const data = JSON.parse(jsonStr);
+            
+            if (data.type === 'chunk') {
+              const token = typeof data.data === 'string' ? data.data : '';
+              if (token) {
+                accumulatedRawText += token;
+                
+                // Extract text value incrementally from JSON as it streams
+                const trimmed = accumulatedRawText.trim();
+                
+                if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                  // Looks like JSON - extract text value incrementally
+                  const extractedText = extractTextFromPartialJson(accumulatedRawText);
+                  
+                  if (extractedText && extractedText !== currentTextValue) {
+                    currentTextValue = extractedText;
+                    
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        content: { text: extractedText }
+                      }
+                    });
+                  }
+                } else {
+                  // Not JSON yet - might be plain text
+                  if (!trimmed.startsWith('{') && !trimmed.startsWith('[') && !trimmed.includes('"text"')) {
+                    currentTextValue = accumulatedRawText;
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        content: { text: accumulatedRawText }
+                      }
+                    });
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing final SSE data:', e);
+          }
+        }
+      }
+
+      // For now, we'll skip the old response handling since we're streaming
+      return;
+
+      /* COMMENTED OUT - Now using streaming
       // Handle new response format (text, suggestedQuestions, products)
       if ('text' in data && 'products' in data) {
         const chatResponse = data as ChatResponse;
 
-        // Create bot message with text content
+        // TESTING: Create bot message with just raw text content (no structured content, no suggested questions)
         const botMessageId = generateId();
         const botMessage: Message = {
           id: botMessageId,
           role: "bot",
           type: "text",
-          content: { text: chatResponse.text },
-          suggestedQuestions: chatResponse.suggestedQuestions,
-          structured: chatResponse.products.length > 0 ? {
-            type: 'product',
-            data: chatResponse.products
-          } : undefined,
+          content: { text: chatResponse.text || JSON.stringify(data, null, 2) }, // Fallback to full JSON if no text
+          // COMMENTED OUT FOR TESTING
+          // suggestedQuestions: chatResponse.suggestedQuestions,
+          // structured: chatResponse.products.length > 0 ? {
+          //   type: 'product',
+          //   data: chatResponse.products
+          // } : undefined,
         };
 
         dispatch({ type: "ADD_MESSAGE", payload: botMessage });
 
-        // Automatically open sidebar if products are present
-        if (chatResponse.products.length > 0) {
-          dispatch({
-            type: "SET_SIDEBAR_STATE",
-            payload: { isOpen: true, messageId: botMessageId },
-          });
-          // Dispatch custom event when sidebar is opened
-          window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
-        }
+        // COMMENTED OUT FOR TESTING - Automatically open sidebar if products are present
+        // if (chatResponse.products.length > 0) {
+        //   dispatch({
+        //     type: "SET_SIDEBAR_STATE",
+        //     payload: { isOpen: true, messageId: botMessageId },
+        //   });
+        //   // Dispatch custom event when sidebar is opened
+        //   window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
+        // }
       }
       // Handle legacy response format (messages array)
       else if (data.messages && Array.isArray(data.messages)) {
+        // TESTING: Just use raw text, no structured content or suggested questions
         const botMessages: Message[] = data.messages.map((msg: any) => ({
           id: msg.id || generateId(),
           role: msg.role || "bot",
           type: msg.type || "text",
-          content: msg.content || "Sorry, I could not process your message.",
-          suggestedQuestions: msg.suggestedQuestions || undefined,
-          structured: msg.structured || undefined,
+          content: typeof msg.content === 'string' 
+            ? { text: msg.content } 
+            : (msg.content || { text: "Sorry, I could not process your message." }),
+          // COMMENTED OUT FOR TESTING
+          // suggestedQuestions: msg.suggestedQuestions || undefined,
+          // structured: msg.structured || undefined,
         }));
 
         dispatch({ type: "ADD_MESSAGES", payload: botMessages });
 
-        // Automatically open sidebar if any message has products
-        const messageWithProducts = botMessages.find(
-          (msg) => msg.structured?.type === 'product' && msg.structured.data?.length > 0
-        );
-        if (messageWithProducts) {
-          dispatch({
-            type: "SET_SIDEBAR_STATE",
-            payload: { isOpen: true, messageId: messageWithProducts.id },
-          });
-          // Dispatch custom event when sidebar is opened
-          window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
-        }
+        // COMMENTED OUT FOR TESTING - Automatically open sidebar if any message has products
+        // const messageWithProducts = botMessages.find(
+        //   (msg) => msg.structured?.type === 'product' && msg.structured.data?.length > 0
+        // );
+        // if (messageWithProducts) {
+        //   dispatch({
+        //     type: "SET_SIDEBAR_STATE",
+        //     payload: { isOpen: true, messageId: messageWithProducts.id },
+        //   });
+        //   // Dispatch custom event when sidebar is opened
+        //   window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
+        // }
       } else {
-        // Fallback for single message response
+        // TESTING: Fallback for single message response - just use raw text
         const botMessageId = generateId();
+        const fallbackData = data as any;
         const botMessage: Message = {
           id: botMessageId,
           role: "bot",
-          type: (data as any).type || "text",
-          content: (data as any).content || "Sorry, I could not process your message.",
-          suggestedQuestions: (data as any).suggestedQuestions || undefined,
-          structured: (data as any).structured || undefined,
+          type: fallbackData.type || "text",
+          content: typeof fallbackData.content === 'string'
+            ? { text: fallbackData.content }
+            : (fallbackData.content || { text: JSON.stringify(data, null, 2) }), // Show full response if no text
+          // COMMENTED OUT FOR TESTING
+          // suggestedQuestions: fallbackData.suggestedQuestions || undefined,
+          // structured: fallbackData.structured || undefined,
         };
 
         dispatch({ type: "ADD_MESSAGE", payload: botMessage });
 
-        // Automatically open sidebar if structured content with products is present
-        if (botMessage.structured?.type === 'product' && botMessage.structured.data?.length > 0) {
-          dispatch({
-            type: "SET_SIDEBAR_STATE",
-            payload: { isOpen: true, messageId: botMessageId },
-          });
-          // Dispatch custom event when sidebar is opened
-          window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
-        }
+        // COMMENTED OUT FOR TESTING - Automatically open sidebar if structured content with products is present
+        // if (botMessage.structured?.type === 'product' && botMessage.structured.data?.length > 0) {
+        //   dispatch({
+        //     type: "SET_SIDEBAR_STATE",
+        //     payload: { isOpen: true, messageId: botMessageId },
+        //   });
+        //   // Dispatch custom event when sidebar is opened
+        //   window.dispatchEvent(new CustomEvent('chatbotRecommendationsOpened'));
+        // }
       }
+      */
     } catch (error) {
       console.error("Error sending message:", error);
 

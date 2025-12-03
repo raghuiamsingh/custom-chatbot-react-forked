@@ -1,1 +1,1 @@
-export { ChatWindow } from "./ChatWindow.component";
+export { ChatWindow, type ChatWindowRef } from "./ChatWindow.component";

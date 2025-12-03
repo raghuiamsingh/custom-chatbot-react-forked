@@ -55,7 +55,19 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
               {parseMarkdownBold(message.content.text)}
             </div>
 
-            {message.structured &&
+            {/* Loading state for products */}
+            {message.isLoadingProducts && (
+              <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Loading products...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Structured content (products, cards, etc.) - only show when loaded */}
+            {!message.isLoadingProducts &&
+              message.structured &&
               message.structured.type === "product" &&
               message.structured.data.length > 0 && (
                 <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -110,6 +122,14 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
                   </div>
                 </div>
               )}
+
+            {/* Loading state for suggested questions */}
+            {message.isLoadingSuggestions && (
+              <div className="mt-4 flex items-center gap-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Loading suggestions...</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -122,8 +142,6 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
           </div>
         )}
 
-        {/* Product messages are now handled as structured content in text messages */}
-
         {message.type === "list" && (
           <div className="px-4 py-3">
             <ul className="list-disc list-inside space-y-2 text-base leading-relaxed text-gray-800 dark:text-gray-100 transition-colors duration-300 ease-in-out">
@@ -134,7 +152,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
           </div>
         )}
 
-        {message.suggestedQuestions &&
+        {!message.isLoadingSuggestions &&
+          message.suggestedQuestions &&
           message.suggestedQuestions.length > 0 &&
           onQuestionClick && (
             <SuggestedQuestions
