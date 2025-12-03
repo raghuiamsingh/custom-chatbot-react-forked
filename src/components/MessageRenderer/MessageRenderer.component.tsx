@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { MessageBubble, ButtonGroup, TypingIndicator, SuggestedQuestions, ProductCard } from "@components";
+import { MessageBubble, ButtonGroup, SuggestedQuestions, ProductCard } from "@components";
 import { type Message, type Product } from "@types";
 import { parseMarkdownBold } from "@utils/constants";
 
@@ -40,14 +40,10 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
     );
   }
 
-  // Handle typing indicator
-  if (message.type === "typing") {
-    return <TypingIndicator />;
-  }
 
   // Bot messages: professional content blocks
   return (
-    <div className="mb-6">
+    <div>
       <div className="mx-auto">
         {message.type === "text" && (
           <div className="px-4 py-3">
@@ -55,15 +51,6 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
               {parseMarkdownBold(message.content.text)}
             </div>
 
-            {/* Loading state for products */}
-            {message.isLoadingProducts && (
-              <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <div className="flex items-center gap-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Loading products...</span>
-                </div>
-              </div>
-            )}
 
             {/* Structured content (products, cards, etc.) - only show when loaded */}
             {!message.isLoadingProducts &&
@@ -123,13 +110,6 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
                 </div>
               )}
 
-            {/* Loading state for suggested questions */}
-            {message.isLoadingSuggestions && (
-              <div className="mt-4 flex items-center gap-3">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-sm text-gray-600 dark:text-gray-400">Loading suggestions...</span>
-              </div>
-            )}
           </div>
         )}
 

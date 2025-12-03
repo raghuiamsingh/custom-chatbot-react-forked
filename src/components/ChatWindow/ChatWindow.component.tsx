@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import { motion } from "framer-motion";
 import { MessageRenderer } from "@components";
 import { type Message } from "@types";
 import { INTRODUCTION_MESSAGE, parseMarkdownBold, getRandomSuggestedQuestions } from "@utils/constants";
@@ -129,22 +130,43 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
             )}
           </div>
         ) : (
-          <div role="list" aria-label="Chat messages">
-            {messages.map((message, index) => (
-              <div key={message.id || index} role="listitem">
-                <MessageRenderer
-                  message={message}
-                  messages={messages}
-                  messageIndex={index}
-                  onButtonClick={onButtonClick}
-                  onQuestionClick={onQuestionClick}
-                  onViewRecommendations={onViewRecommendations}
-                  onRemoveSuggestions={onRemoveSuggestions}
-                  isLoading={isLoading}
-                />
+          <>
+            <div role="list" aria-label="Chat messages">
+              {messages.map((message, index) => (
+                <div key={message.id || index} role="listitem">
+                  <MessageRenderer
+                    message={message}
+                    messages={messages}
+                    messageIndex={index}
+                    onButtonClick={onButtonClick}
+                    onQuestionClick={onQuestionClick}
+                    onViewRecommendations={onViewRecommendations}
+                    onRemoveSuggestions={onRemoveSuggestions}
+                    isLoading={isLoading}
+                  />
+                </div>
+              ))}
+            </div>
+            {/* Loading dot when fetching from API */}
+            {isLoading && (
+              <div className="mb-6">
+                <div className="px-4 pt-2">
+                  <motion.div
+                    className="w-3 h-3 rounded-full bg-gray-600 dark:bg-gray-500"
+                    animate={{
+                      opacity: [0.6, 1, 0.6],
+                      scale: [1, 1.15, 1],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>

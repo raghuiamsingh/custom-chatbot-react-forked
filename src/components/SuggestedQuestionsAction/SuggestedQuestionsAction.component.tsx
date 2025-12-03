@@ -306,14 +306,26 @@ export const SuggestedQuestionsAction: React.FC<
                   ))
                 ) : (
                   <motion.div
-                    className="col-span-full min-h-[80px] flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm"
+                    className="col-span-full min-h-[80px] flex items-center"
                     variants={tileVariants}
                     initial="hidden"
                     animate="visible"
                   >
-                    {isLoadingSets
-                      ? "Loading suggestions..."
-                      : "No suggestions available"}
+                    {isLoadingSets ? (
+                      <motion.div
+                        className="w-4 h-4 rounded-full bg-gray-600 dark:bg-gray-500"
+                        animate={{
+                          opacity: [0.6, 1, 0.6],
+                        }}
+                        transition={{
+                          duration: 1.5,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400 text-sm">No suggestions available</span>
+                    )}
                   </motion.div>
                 )}
               </div>
