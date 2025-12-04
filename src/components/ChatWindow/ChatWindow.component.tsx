@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { MessageRenderer } from "@components";
 import { type Message } from "@types";
@@ -19,6 +19,9 @@ export interface ChatWindowRef {
   isNearBottom: () => boolean;
 }
 
+// Constants - defined outside component to avoid recreation on each render
+const TEXT_STREAMING_DEBOUNCE_MS = 300;
+
 export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
   messages,
   onButtonClick,
@@ -29,6 +32,11 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
   onScrollChange,
 }, ref) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Track whether text is actively streaming (changing)
+  const [isTextStreaming, setIsTextStreaming] = useState(false);
+  const lastTextRef = useRef<string>('');
+  const textTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollToBottom = () => {
     if (scrollContainerRef.current) {
@@ -80,6 +88,91 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
       }
     }
   }, [messages]);
+
+  // Memoized: Find the last bot message with text type (for streaming detection)
+  const lastBotTextMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role === 'bot' && msg.type === 'text') {
+        return msg;
+      }
+    }
+    return null;
+  }, [messages]);
+
+  const currentText = lastBotTextMessage?.content?.text || '';
+
+  // Track text changes to detect when streaming is active vs. stopped
+  useEffect(() => {
+    if (currentText !== lastTextRef.current) {
+      lastTextRef.current = currentText;
+
+      if (currentText.length > 0) {
+        // Text is actively changing - mark as streaming
+        setIsTextStreaming(true);
+
+        // Clear any existing timeout
+        if (textTimeoutRef.current) {
+          clearTimeout(textTimeoutRef.current);
+        }
+
+        // After debounce period with no changes, consider text streaming complete
+        textTimeoutRef.current = setTimeout(() => {
+          setIsTextStreaming(false);
+        }, TEXT_STREAMING_DEBOUNCE_MS);
+      }
+    }
+
+    // Cleanup: clear timeout on dependency change or unmount
+    return () => {
+      if (textTimeoutRef.current) {
+        clearTimeout(textTimeoutRef.current);
+      }
+    };
+  }, [currentText]);
+
+  // Reset streaming state when loading stops or chat resets
+  useEffect(() => {
+    if (!isLoading) {
+      setIsTextStreaming(false);
+      lastTextRef.current = '';
+      if (textTimeoutRef.current) {
+        clearTimeout(textTimeoutRef.current);
+      }
+    }
+  }, [isLoading]);
+
+  // Memoized: Determine if we should show loading dot
+  // Show when: waiting for response OR after text streaming but still loading products/suggestions
+  // Hide when: text is actively streaming
+  const shouldShowLoadingDot = useMemo(() => {
+    if (!isLoading || messages.length === 0) return false;
+
+    const lastMessage = messages[messages.length - 1];
+
+    // If last message is not a bot text message with content, show dot (waiting for initial response)
+    const hasBotTextContent = lastMessage?.role === 'bot' &&
+        lastMessage.type === 'text' &&
+        lastMessage.content?.text &&
+        lastMessage.content.text.length > 0;
+
+    if (!hasBotTextContent) {
+      return true;
+    }
+
+    // If text is actively streaming, hide the dot
+    if (isTextStreaming) {
+      return false;
+    }
+
+    // Text has stopped streaming - check if products or suggestions are still loading
+    if (lastBotTextMessage?.isLoadingProducts || lastBotTextMessage?.isLoadingSuggestions) {
+      return true;
+    }
+
+    // Everything is loaded
+    return false;
+  }, [isLoading, messages, isTextStreaming, lastBotTextMessage]);
 
   return (
     <div
@@ -147,14 +240,14 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
                 </div>
               ))}
             </div>
-            {/* Loading dot when fetching from API */}
-            {isLoading && (
+
+            {/* Loading dot when waiting for response (not during active streaming) */}
+            {shouldShowLoadingDot && (
               <div className="mb-6">
                 <div className="px-4 pt-2">
                   <motion.div
-                    className="w-3 h-3 rounded-full bg-gray-600 dark:bg-gray-500"
+                    className="w-4 h-4 rounded-full bg-gray-600 dark:bg-gray-500"
                     animate={{
-                      opacity: [0.6, 1, 0.6],
                       scale: [1, 1.15, 1],
                     }}
                     transition={{
