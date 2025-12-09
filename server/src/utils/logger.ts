@@ -126,7 +126,9 @@ class Logger {
       responseSize: JSON.stringify(response).length,
       hasSteps: !!response.steps,
       hasAiMessage: !!response.aiMessage,
-      hasTextOutput: !!response.response?.text_output
+      hasText: !!response.response?.text,
+      hasSuggestedQuestions: !!response.response?.suggestedQuestions,
+      hasProducts: !!response.response?.products
     });
   }
 

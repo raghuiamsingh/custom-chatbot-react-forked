@@ -301,37 +301,63 @@ export default class BotDojoService {
     let suggestedQuestions: string[] = [];
     const products: Product[] = [];
 
-    // Extract text and suggested questions
-    if (botdojoResponse.response && botdojoResponse.response.text_output) {
-      const parsedContent = this.parseTextOutput(botdojoResponse.response.text_output);
-      textContent = parsedContent.text;
-      suggestedQuestions = parsedContent.suggestedQuestions;
+    // Extract text, suggested questions, and products from new response structure
+    if (botdojoResponse.response) {
+      // New format: response has text, suggestedQuestions, and products directly
+      if (botdojoResponse.response.text && typeof botdojoResponse.response.text === 'string') {
+        textContent = botdojoResponse.response.text;
+      }
+      
+      if (Array.isArray(botdojoResponse.response.suggestedQuestions)) {
+        suggestedQuestions = botdojoResponse.response.suggestedQuestions;
+      }
+      
+      // Process products from response.products array
+      if (Array.isArray(botdojoResponse.response.products)) {
+        botdojoResponse.response.products.forEach((product: any) => {
+          // If products are strings (SKUs), convert to Product objects
+          if (typeof product === 'string') {
+            products.push({
+              sku: product,
+              name: `Product: ${product}`,
+              description: '',
+              price: '',
+              ingredients: [],
+              benefits: [],
+              dosage: '',
+              warnings: '',
+              productUrl: `https://uat.gethealthy.store/botdojo/product?sku=${product}`,
+              imageUrl: '',
+              category: '',
+              brand: '',
+              servings: '',
+              form: ''
+            });
+          } else if (typeof product === 'object') {
+            // If products are objects, use them directly
+            const sku = product.sku || '';
+            const productId = product.productId || product.id || '';
+            // Ensure productUrl has a valid URL, with fallback
+            const productUrl = product.productUrl || product.url ||
+              (sku ? `https://uat.gethealthy.store/botdojo/product?sku=${sku}${productId ? `&pid=${productId}` : ''}` : '');
 
-      // Process products from parsed content
-      if (parsedContent.products && Array.isArray(parsedContent.products)) {
-        parsedContent.products.forEach((product: any) => {
-          const sku = product.sku || '';
-          const productId = product.productId || product.id || '';
-          // Ensure productUrl has a valid URL, with fallback
-          const productUrl = product.productUrl || product.url ||
-            (sku ? `https://uat.gethealthy.store/botdojo/product?sku=${sku}${productId ? `&pid=${productId}` : ''}` : '');
-
-          products.push({
-            sku: sku,
-            name: product.name || product.title || `Product: ${sku}`,
-            description: product.description || '',
-            price: product.price || '',
-            ingredients: Array.isArray(product.ingredients) ? product.ingredients : [],
-            benefits: Array.isArray(product.benefits) ? product.benefits : [],
-            dosage: product.dosage || '',
-            warnings: product.warnings || '',
-            productUrl: productUrl,
-            imageUrl: product.imageUrl || product.image || '',
-            category: product.category || '',
-            brand: product.brand || '',
-            servings: product.servings || '',
-            form: product.form || ''
-          });
+            products.push({
+              sku: sku,
+              name: product.name || product.title || `Product: ${sku}`,
+              description: product.description || '',
+              price: product.price || '',
+              ingredients: Array.isArray(product.ingredients) ? product.ingredients : [],
+              benefits: Array.isArray(product.benefits) ? product.benefits : [],
+              dosage: product.dosage || '',
+              warnings: product.warnings || '',
+              productUrl: productUrl,
+              imageUrl: product.imageUrl || product.image || '',
+              category: product.category || '',
+              brand: product.brand || '',
+              servings: product.servings || '',
+              form: product.form || ''
+            });
+          }
         });
       }
     }
@@ -384,8 +410,8 @@ export default class BotDojoService {
         textContent = botdojoResponse.text;
       } else if (botdojoResponse.message) {
         textContent = botdojoResponse.message;
-      } else if (botdojoResponse.response?.text_output) {
-        textContent = botdojoResponse.response.text_output;
+      } else if (botdojoResponse.response?.text) {
+        textContent = botdojoResponse.response.text;
       } else {
         textContent = 'Sorry, I could not process your message.';
       }
@@ -414,7 +440,7 @@ export default class BotDojoService {
     // Handle BotDojo flow run response structure
     if (botdojoResponse.aiMessage && botdojoResponse.aiMessage.steps) {
       return this.normalizeStepsResponse(botdojoResponse);
-    } else if (botdojoResponse.response && botdojoResponse.response.text_output && !botdojoResponse.steps) {
+    } else if (botdojoResponse.response && botdojoResponse.response.text && !botdojoResponse.steps) {
       return this.normalizeFallbackResponse(botdojoResponse);
     } else if (botdojoResponse.steps && Array.isArray(botdojoResponse.steps)) {
       return this.normalizeStepsArrayResponse(botdojoResponse);
@@ -454,24 +480,41 @@ export default class BotDojoService {
     let textContent = '';
     let suggestedQuestions: string[] = [];
 
-    if (botdojoResponse.response && botdojoResponse.response.text_output) {
-      const parsedContent = this.parseTextOutput(botdojoResponse.response.text_output);
-      textContent = parsedContent.text;
-      suggestedQuestions = parsedContent.suggestedQuestions;
-
-      // Process products into structured content
-      if (parsedContent.products && Array.isArray(parsedContent.products)) {
-        parsedContent.products.forEach(product => {
-          const normalized = normalizeImageUrl(product.imageUrl || product.image || '');
-          const safeImageUrl = isLikelyImage(normalized) ? normalized : undefined;
-          allStructuredContent.push({
-            sku: product.sku || 'UNKNOWN',
-            productId: product.productId || product.id || 'UNKNOWN',
-            title: product.name || product.title || `Product: ${product.sku}`,
-            imageUrl: safeImageUrl,
-            description: product.description || undefined,
-            url: product.url || `https://uat.gethealthy.store/botdojo/product?sku=${product.sku}&pid=${product.productId || product.id}`
-          });
+    if (botdojoResponse.response) {
+      // New format: response has text, suggestedQuestions, and products directly
+      if (botdojoResponse.response.text && typeof botdojoResponse.response.text === 'string') {
+        textContent = botdojoResponse.response.text;
+      }
+      
+      if (Array.isArray(botdojoResponse.response.suggestedQuestions)) {
+        suggestedQuestions = botdojoResponse.response.suggestedQuestions;
+      }
+      
+      // Process products from response.products array
+      if (Array.isArray(botdojoResponse.response.products)) {
+        botdojoResponse.response.products.forEach((product: any) => {
+          // If products are strings (SKUs), convert to structured content
+          if (typeof product === 'string') {
+            allStructuredContent.push({
+              sku: product,
+              productId: 'UNKNOWN',
+              title: `Product: ${product}`,
+              imageUrl: undefined,
+              description: undefined,
+              url: `https://uat.gethealthy.store/botdojo/product?sku=${product}`
+            });
+          } else if (typeof product === 'object') {
+            const normalized = normalizeImageUrl(product.imageUrl || product.image || '');
+            const safeImageUrl = isLikelyImage(normalized) ? normalized : undefined;
+            allStructuredContent.push({
+              sku: product.sku || 'UNKNOWN',
+              productId: product.productId || product.id || 'UNKNOWN',
+              title: product.name || product.title || `Product: ${product.sku}`,
+              imageUrl: safeImageUrl,
+              description: product.description || undefined,
+              url: product.url || product.productUrl || `https://uat.gethealthy.store/botdojo/product?sku=${product.sku}&pid=${product.productId || product.id}`
+            });
+          }
         });
       }
     }
@@ -726,20 +769,18 @@ export default class BotDojoService {
    */
   private normalizeFallbackResponse(botdojoResponse: BotDojoResponse): ChatMessage[] {
     const messages: ChatMessage[] = [];
-    let textContent = botdojoResponse.response!.text_output;
+    let textContent = '';
     let suggestedQuestions: string[] = [];
 
-    // Try to parse JSON format with text and suggestedQuestions
-    try {
-      const parsedContent = JSON.parse(textContent);
-      if (parsedContent.text && typeof parsedContent.text === 'string') {
-        textContent = parsedContent.text;
-        if (parsedContent.suggestedQuestions && Array.isArray(parsedContent.suggestedQuestions)) {
-          suggestedQuestions = parsedContent.suggestedQuestions;
-        }
+    // New format: response has text, suggestedQuestions, and products directly
+    if (botdojoResponse.response) {
+      if (botdojoResponse.response.text && typeof botdojoResponse.response.text === 'string') {
+        textContent = botdojoResponse.response.text;
       }
-    } catch (e) {
-      // Not JSON, use text as-is
+      
+      if (Array.isArray(botdojoResponse.response.suggestedQuestions)) {
+        suggestedQuestions = botdojoResponse.response.suggestedQuestions;
+      }
     }
 
     // Clean up canvas references from text content
@@ -952,9 +993,9 @@ export default class BotDojoService {
       }
     }
 
-    // Try to extract from response.text_output
-    if (botdojoResponse.response && botdojoResponse.response.text_output) {
-      const text = botdojoResponse.response.text_output;
+    // Try to extract from response.text (new format)
+    if (botdojoResponse.response && botdojoResponse.response.text) {
+      const text = botdojoResponse.response.text;
 
       // Look for patterns like "Suggested Questions:" followed by lists
       const suggestionMatches = text.match(/suggested questions?:?\s*([\s\S]*?)(?=\n\n|\n[A-Z]|$)/gi);

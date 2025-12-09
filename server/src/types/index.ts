@@ -64,7 +64,9 @@ export interface BotDojoResponse {
     steps: BotDojoStep[];
   };
   response?: {
-    text_output: string;
+    text: string;
+    suggestedQuestions: string[];
+    products: string[];
   };
   steps?: BotDojoStep[];
   output?: BotDojoOutput[];

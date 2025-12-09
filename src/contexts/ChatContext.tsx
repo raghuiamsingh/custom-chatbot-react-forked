@@ -391,7 +391,18 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                 
                 // Process final response for products and suggested questions
                 if (data.response) {
-                  const { products = [], suggestedQuestions = [] } = data.response;
+                  const { text, products = [], suggestedQuestions = [] } = data.response;
+                  
+                  // Update text if provided in response (may override streamed text)
+                  if (text && typeof text === 'string') {
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        content: { text: text }
+                      }
+                    });
+                  }
                   
                   // Show suggestedQuestions immediately when available
                   if (suggestedQuestions.length > 0) {
