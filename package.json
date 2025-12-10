@@ -1,7 +1,7 @@
 {
   "name": "@MyVitamins/custom-chatbot-react",
   "private": false,
-  "version": "3.1.11",
+  "version": "3.2.11",
   "type": "module",
   "main": "dist/index.umd.js",
   "module": "dist/index.es.js",
