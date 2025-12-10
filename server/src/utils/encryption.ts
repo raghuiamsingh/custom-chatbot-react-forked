@@ -61,9 +61,9 @@ export function getPublicKey(): string {
 
 /**
  * Decrypt data that was encrypted with the public key
- * Uses RSA-OAEP padding with SHA-256 hash
+ * Supports both direct RSA encryption and hybrid encryption (AES-GCM + RSA)
  * 
- * @param encryptedBase64 - Base64-encoded encrypted data
+ * @param encryptedBase64 - Base64-encoded encrypted data (may have "hybrid:" prefix)
  * @returns Decrypted string (typically JSON)
  * @throws Error if decryption fails
  */
@@ -77,21 +77,65 @@ export function decryptData(encryptedBase64: string): string {
   }
 
   try {
-    // Convert base64 to buffer
-    const encryptedBuffer = Buffer.from(encryptedBase64, 'base64');
-    
-    // Decrypt using private key with RSA-OAEP padding
-    const decrypted = crypto.privateDecrypt(
-      {
-        key: privateKey,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, // OAEP padding (more secure than PKCS1v1.5)
-        oaepHash: 'sha256' // SHA-256 hash (matches frontend)
-      },
-      encryptedBuffer
-    );
+    // Check if it's hybrid encryption
+    if (encryptedBase64.startsWith('hybrid:')) {
+      // Hybrid encryption: AES-GCM + RSA
+      const combinedBase64 = encryptedBase64.substring(7); // Remove "hybrid:" prefix
+      const combinedBuffer = Buffer.from(combinedBase64, 'base64');
+      
+      // Extract components
+      // RSA-encrypted AES key: 512 bytes (4096-bit RSA output)
+      const encryptedAesKeyLength = 512;
+      const encryptedAesKey = combinedBuffer.subarray(0, encryptedAesKeyLength);
+      
+      // IV: 12 bytes
+      const ivLength = 12;
+      const iv = combinedBuffer.subarray(encryptedAesKeyLength, encryptedAesKeyLength + ivLength);
+      
+      // Encrypted data: rest
+      const encryptedData = combinedBuffer.subarray(encryptedAesKeyLength + ivLength);
+      
+      // 1. Decrypt AES key with RSA
+      const aesKeyBuffer = crypto.privateDecrypt(
+        {
+          key: privateKey,
+          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+          oaepHash: 'sha256'
+        },
+        encryptedAesKey
+      );
+      
+      // 2. Decrypt data with AES-GCM
+      const decipher = crypto.createDecipheriv('aes-256-gcm', aesKeyBuffer, iv);
+      
+      // Extract authentication tag (last 16 bytes of encrypted data)
+      const tagLength = 16;
+      const tag = encryptedData.subarray(encryptedData.length - tagLength);
+      const ciphertext = encryptedData.subarray(0, encryptedData.length - tagLength);
+      
+      decipher.setAuthTag(tag);
+      
+      let decrypted = decipher.update(ciphertext, undefined, 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      return decrypted;
+    } else {
+      // Direct RSA encryption (backward compatible)
+      const encryptedBuffer = Buffer.from(encryptedBase64, 'base64');
+      
+      // Decrypt using private key with RSA-OAEP padding
+      const decrypted = crypto.privateDecrypt(
+        {
+          key: privateKey,
+          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, // OAEP padding (more secure than PKCS1v1.5)
+          oaepHash: 'sha256' // SHA-256 hash (matches frontend)
+        },
+        encryptedBuffer
+      );
 
-    // Return as UTF-8 string
-    return decrypted.toString('utf8');
+      // Return as UTF-8 string
+      return decrypted.toString('utf8');
+    }
   } catch (error) {
     // Provide helpful error messages
     if (error instanceof Error) {
@@ -119,8 +163,13 @@ export function isEncryptedData(data: string): boolean {
     return false;
   }
   
+  // Check for hybrid encryption prefix
+  if (data.startsWith('hybrid:')) {
+    return true;
+  }
+  
   // Base64 strings are typically longer and match base64 pattern
-  // Encrypted RSA data with 2048-bit key produces ~344 character base64 strings
+  // Encrypted RSA data with 4096-bit key produces ~684 character base64 strings
   const base64Pattern = /^[A-Za-z0-9+/=]+$/;
   const minEncryptedLength = 200; // Minimum expected length for encrypted data
   

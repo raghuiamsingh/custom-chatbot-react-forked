@@ -25,6 +25,7 @@ export default defineConfig({
       "/debug-botdojo": "http://localhost:3001",
       "/health": "http://localhost:3001",
       "/encryption/public-key": "http://localhost:3001",
+      '/product-info': 'http://localhost:3001',
     },
   },
   build: {

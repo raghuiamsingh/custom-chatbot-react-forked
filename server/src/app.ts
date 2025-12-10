@@ -27,6 +27,8 @@ import {
   SuggestionsRequest,
   SuggestionsResponse,
   TestStructuredRequest,
+  ProductInfoRequest,
+  ProductInfoResponse,
   Message
 } from './types';
 
@@ -66,6 +68,7 @@ const limiter = rateLimit({
 
 app.use('/chat', limiter);
 app.use('/suggestions', limiter);
+app.use('/product-info', limiter);
 
 // CORS configuration
 app.use(cors({
@@ -77,12 +80,6 @@ app.use(cors({
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Serve static files from the built frontend
-app.use(express.static(path.join(__dirname, '../../dist')));
-
-// Serve static files from the public directory (fallback)
-app.use(express.static('public'));
 
 // Helper function to extract and parse BotDojo config from request body
 // Supports both encrypted and plain text (for backward compatibility)
@@ -263,7 +260,7 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-  
+
   // Flush headers immediately to start the stream
   if (typeof (res as any).flushHeaders === 'function') {
     (res as any).flushHeaders();
@@ -277,7 +274,7 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
       // token is already extracted from onNewToken event, just the text
       const sseData = `data: ${JSON.stringify({ type: 'chunk', data: token })}\n\n`;
       res.write(sseData);
-      
+
       // Force flush if available (Node.js streams)
       if (typeof (res as any).flush === 'function') {
         (res as any).flush();
@@ -288,8 +285,8 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
     const transformedResponse = service.transformToNewFormat(botdojoResponse);
 
     // Send final response with products and suggested questions
-    res.write(`data: ${JSON.stringify({ 
-      type: 'done', 
+    res.write(`data: ${JSON.stringify({
+      type: 'done',
       response: {
         text: transformedResponse.text,
         products: transformedResponse.products,
@@ -603,6 +600,158 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
   res.json({ messages: [testMessage] });
 }));
 
+// Product info endpoint
+app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoResponse, ProductInfoRequest>, res: Response<ProductInfoResponse>) => {
+  const requestId = req.headers['x-request-id'] as string;
+  const { products } = req.body;
+
+  // Input validation
+  if (!Array.isArray(products)) {
+    throw new Error('products must be an array');
+  }
+
+  if (products.length === 0) {
+    throw new Error('products array cannot be empty');
+  }
+
+  // Validate all products are strings
+  for (const product of products) {
+    if (typeof product !== 'string') {
+      throw new Error('All products must be strings');
+    }
+  }
+
+  logger.info('Asked for Product Info', {
+    requestId,
+    products
+  });
+
+  // Get SOURCE_API_BASE_URL, SOURCE_PRACTICE_TOKEN, and SOURCE_AUTH_TOKEN from initData
+  let sourceApiBaseUrl: string | undefined;
+  let practiceToken: string | undefined;
+  let sourceAuthToken: string | undefined;
+  try {
+    const body = req.body as any;
+    const configData = body?.initData;
+
+    if (configData) {
+      let configString: string | undefined;
+
+      // Check if the data is encrypted
+      if (typeof configData === 'string' && isEncryptedData(configData)) {
+        try {
+          configString = decryptData(configData);
+        } catch (error) {
+          logger.error('Failed to decrypt initData for product-info', { requestId, error });
+        }
+      } else {
+        if (typeof configData === 'string') {
+          configString = configData;
+        } else {
+          configString = JSON.stringify(configData);
+        }
+      }
+
+      if (configString) {
+        const config = JSON.parse(configString);
+        sourceApiBaseUrl = config.SOURCE_API_BASE_URL;
+        practiceToken = config.SOURCE_PRACTICE_TOKEN;
+        sourceAuthToken = config.SOURCE_AUTH_TOKEN;
+      }
+    }
+  } catch (error) {
+    logger.warn('Failed to extract config from initData', { requestId, error });
+  }
+
+  if (!sourceApiBaseUrl) {
+    logger.warn('SOURCE_API_BASE_URL not found in initData', { requestId });
+    return res.json({
+      success: false,
+      error: 'SOURCE_API_BASE_URL is required in initData'
+    });
+  }
+
+  if (!practiceToken) {
+    logger.warn('SOURCE_PRACTICE_TOKEN not found in initData', { requestId });
+    return res.json({
+      success: false,
+      error: 'SOURCE_PRACTICE_TOKEN is required in initData'
+    });
+  }
+
+  if (!sourceAuthToken) {
+    logger.warn('SOURCE_AUTH_TOKEN not found in initData', { requestId });
+    return res.json({
+      success: false,
+      error: 'SOURCE_AUTH_TOKEN is required in initData'
+    });
+  }
+
+  // Fetch product info for each SKU
+  const productInfoPromises = products.map(async (sku: string) => {
+    try {
+      const productUrl = `${sourceApiBaseUrl}/dispensary/catalog/product/${sku}`;
+      const response = await fetch(productUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Practice-Token': `${practiceToken}`,
+          'Authorization': `Bearer ${sourceAuthToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        logger.warn('Failed to fetch product info', {
+          requestId,
+          sku,
+          status: response.status,
+          statusText: response.statusText
+        });
+        return { sku, error: `Failed to fetch: ${response.status} ${response.statusText}` };
+      }
+
+      const productData = await response.json();
+      logger.info('Successfully fetched product info', { requestId, sku });
+      return { sku, data: productData };
+    } catch (error) {
+      logger.error('Error fetching product info', {
+        requestId,
+        sku,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return { sku, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  const productResults = await Promise.all(productInfoPromises);
+  const successfulProducts = productResults.filter(result => !result.error);
+  const failedProducts = productResults.filter(result => result.error);
+
+  if (failedProducts.length > 0) {
+    logger.warn('Some products failed to fetch', {
+      requestId,
+      failed: failedProducts.map(p => p.sku)
+    });
+  }
+
+  res.json({
+    success: true,
+    products: successfulProducts.map(p => {
+      const product = { sku: p.sku };
+      if (p.data && typeof p.data === 'object') {
+        return { ...product, ...(p.data as Record<string, any>) };
+      }
+      return product;
+    })
+  });
+}));
+
+// Serve static files from the built frontend (after API routes)
+app.use(express.static(path.join(__dirname, '../../dist')));
+
+// Serve static files from the public directory (fallback)
+app.use(express.static('public'));
+
 // Cache management endpoint (for debugging)
 app.get('/cache/stats', (req: Request, res: Response) => {
   const stats = cacheManager.getStats();
@@ -624,12 +773,6 @@ const server = app.listen(serverConfig.port, () => {
     port: serverConfig.port,
     environment: serverConfig.nodeEnv
   });
-  console.log(`📊 Health check: http://localhost:${serverConfig.port}/health`);
-  console.log(`💬 Chat endpoint: http://localhost:${serverConfig.port}/chat`);
-  console.log(`🔍 Debug endpoint: http://localhost:${serverConfig.port}/debug-botdojo`);
-  console.log(`❓ Suggestions endpoint: http://localhost:${serverConfig.port}/suggestions`);
-  console.log(`🧪 Test structured endpoint: http://localhost:${serverConfig.port}/test-structured`);
-  console.log(`🌍 Environment: ${serverConfig.nodeEnv}`);
 });
 
 // Graceful shutdown

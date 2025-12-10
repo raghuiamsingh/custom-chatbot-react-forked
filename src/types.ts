@@ -55,4 +55,5 @@ export type SidebarContent = {
 export type SidebarState = {
   isOpen: boolean;
   messageId: string | null;
+  isLoadingProductInfo?: boolean;
 };

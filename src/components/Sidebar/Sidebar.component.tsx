@@ -9,6 +9,7 @@ interface SidebarProps {
   messageId: string | null;
   messages: Message[];
   zIndex?: number;
+  isLoadingProductInfo?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -17,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   messageId,
   messages,
   zIndex = 50,
+  isLoadingProductInfo = false,
 }) => {
   // Find the message with the given ID and extract structured content
   const message = messageId
@@ -99,10 +101,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Scrollable Content Area */}
             <div className="sidebar-content sidebar-scroll px-4 py-3 space-y-4 scroll-smooth">
-              <SidebarContentRenderer
-                type={structuredContent.type}
-                data={structuredContent.data}
-              />
+              {isLoadingProductInfo ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="flex space-x-1">
+                      <div
+                        className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading product information...</p>
+                  </div>
+                </div>
+              ) : (
+                <SidebarContentRenderer
+                  type={structuredContent.type}
+                  data={structuredContent.data}
+                />
+              )}
             </div>
           </motion.div>
         )}

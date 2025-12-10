@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, type ReactNode } from "react";
+import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from "react";
 import type { Message, SidebarState, ChatResponse, Product } from "@types";
 import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
@@ -40,7 +40,7 @@ const initialState: ChatState = {
   isLoading: false,
   isLoadingSuggestions: false,
   showInitialSuggestions: true,
-  sidebarState: { isOpen: false, messageId: null },
+  sidebarState: { isOpen: false, messageId: null, isLoadingProductInfo: false },
   showContentTester: false,
   debugMode: true,
   abortController: null,
@@ -144,9 +144,74 @@ interface ChatProviderProps {
 
 export function ChatProvider({ children, initData }: ChatProviderProps) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
+  const prevSidebarOpenRef = React.useRef(false);
 
   // Helper function to generate unique IDs
   const generateId = () => Math.random().toString(36).substr(2, 9);
+
+  // Call product-info API when sidebar opens
+  useEffect(() => {
+    const isSidebarOpen = state.sidebarState.isOpen;
+    const wasSidebarClosed = !prevSidebarOpenRef.current;
+    
+    // Only call API when sidebar transitions from closed to open
+    if (isSidebarOpen && wasSidebarClosed && state.sidebarState.messageId) {
+      const message = state.messages.find((msg) => msg.id === state.sidebarState.messageId);
+      
+      // Extract SKUs from the message if it has structured product data
+      if (message?.structured?.type === 'product' && message.structured.data) {
+        const products = message.structured.data
+          .map((item: any) => item.sku)
+          .filter((sku: string | undefined): sku is string => Boolean(sku));
+        
+        if (products.length > 0) {
+          // Set loading state
+          dispatch({
+            type: "SET_SIDEBAR_STATE",
+            payload: { 
+              ...state.sidebarState, 
+              isLoadingProductInfo: true 
+            },
+          });
+
+          // Call the product-info API
+          (async () => {
+            try {
+              // Encrypt initData before sending
+              const encryptedInitData = await encryptInitData(initData);
+
+              const response = await fetch(buildApiUrl("/product-info", initData.BOTDOJO_API_ENDPOINT), {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${initData.BOTDOJO_API_KEY}`
+                },
+                body: JSON.stringify({
+                  products,
+                  initData: encryptedInitData
+                }),
+              });
+            } catch (error) {
+              // Log error but don't block the UI
+              console.error("Failed to call product-info API:", error);
+            } finally {
+              // Clear loading state
+              dispatch({
+                type: "SET_SIDEBAR_STATE",
+                payload: { 
+                  ...state.sidebarState, 
+                  isLoadingProductInfo: false 
+                },
+              });
+            }
+          })();
+        }
+      }
+    }
+    
+    // Update ref for next render
+    prevSidebarOpenRef.current = isSidebarOpen;
+  }, [state.sidebarState.isOpen, state.sidebarState.messageId, state.messages, initData]);
 
   // Send message function
   const sendMessage = async (content: string) => {
@@ -689,7 +754,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
   const handleCloseSidebar = () => {
     dispatch({
       type: "SET_SIDEBAR_STATE",
-      payload: { isOpen: false, messageId: null },
+      payload: { isOpen: false, messageId: null, isLoadingProductInfo: false },
     });
     // Dispatch custom event when sidebar is closed
     window.dispatchEvent(new CustomEvent('chatbotRecommendationsClosed'));

@@ -129,11 +129,12 @@ export async function fetchPublicKey(endpoint?: string): Promise<string> {
 }
 
 /**
- * Encrypt data using RSA-OAEP with the public key
+ * Encrypt data using hybrid encryption (AES-GCM + RSA-OAEP)
+ * For data larger than RSA limit, uses AES-GCM to encrypt data and RSA to encrypt the AES key
  * 
  * @param data - Data to encrypt (will be JSON stringified if object)
  * @param publicKeyPem - Public key in PEM format
- * @returns Base64-encoded encrypted data
+ * @returns Base64-encoded encrypted data (format: "hybrid:" + base64(encryptedAESKey + iv + encryptedData))
  * @throws Error if encryption fails
  */
 export async function encryptData(data: any, publicKeyPem: string): Promise<string> {
@@ -144,13 +145,7 @@ export async function encryptData(data: any, publicKeyPem: string): Promise<stri
     try {
         // Convert data to string if it's an object
         const dataString = typeof data === 'string' ? data : JSON.stringify(data);
-
-        // Check data size (RSA can only encrypt data up to key size minus padding overhead)
-        // For 4096-bit RSA-OAEP with SHA-256: max ~470 bytes
-        const maxDataSize = 470;
-        if (dataString.length > maxDataSize) {
-            throw new Error(`Data too large for RSA encryption. Maximum size: ${maxDataSize} bytes, got: ${dataString.length} bytes`);
-        }
+        const dataBytes = new TextEncoder().encode(dataString);
 
         // Get crypto.subtle API
         const subtle = getCryptoSubtle();
@@ -170,25 +165,75 @@ export async function encryptData(data: any, publicKeyPem: string): Promise<stri
             ['encrypt'] // Key usage
         );
 
-        // Encrypt the data
-        const encrypted = await subtle.encrypt(
+        // Check data size (RSA can only encrypt data up to key size minus padding overhead)
+        // For 4096-bit RSA-OAEP with SHA-256: max ~470 bytes
+        const maxRsaDataSize = 470;
+        
+        if (dataBytes.length <= maxRsaDataSize) {
+            // Small data: use direct RSA encryption (backward compatible)
+            const encrypted = await subtle.encrypt(
+                {
+                    name: 'RSA-OAEP'
+                },
+                publicKey,
+                dataBytes
+            );
+            return arrayBufferToBase64(encrypted);
+        }
+
+        // Large data: use hybrid encryption (AES-GCM + RSA)
+        // 1. Generate AES key
+        const aesKey = await subtle.generateKey(
+            {
+                name: 'AES-GCM',
+                length: 256
+            },
+            true, // extractable
+            ['encrypt']
+        );
+
+        // 2. Generate IV (12 bytes for AES-GCM)
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+        // 3. Encrypt data with AES-GCM
+        const encryptedData = await subtle.encrypt(
+            {
+                name: 'AES-GCM',
+                iv: iv,
+                tagLength: 128 // 128-bit authentication tag
+            },
+            aesKey,
+            dataBytes
+        );
+
+        // 4. Export AES key
+        const exportedKey = await subtle.exportKey('raw', aesKey);
+        const aesKeyBytes = new Uint8Array(exportedKey);
+
+        // 5. Encrypt AES key with RSA
+        const encryptedAesKey = await subtle.encrypt(
             {
                 name: 'RSA-OAEP'
             },
             publicKey,
-            new TextEncoder().encode(dataString)
+            aesKeyBytes
         );
 
-        // Convert to base64 for transmission
-        return arrayBufferToBase64(encrypted);
+        // 6. Combine: encryptedAESKey (512 bytes) + iv (12 bytes) + encryptedData
+        const encryptedAesKeyArray = new Uint8Array(encryptedAesKey);
+        const encryptedDataArray = new Uint8Array(encryptedData);
+        const combined = new Uint8Array(encryptedAesKeyArray.length + iv.length + encryptedDataArray.length);
+        combined.set(encryptedAesKeyArray, 0);
+        combined.set(iv, encryptedAesKeyArray.length);
+        combined.set(encryptedDataArray, encryptedAesKeyArray.length + iv.length);
+
+        // 7. Return with "hybrid:" prefix to indicate hybrid encryption
+        return 'hybrid:' + arrayBufferToBase64(combined.buffer);
     } catch (error) {
         // Provide helpful error messages
         if (error instanceof Error) {
             if (error.message.includes('crypto.subtle')) {
                 throw error; // Re-throw crypto availability errors as-is
-            }
-            if (error.message.includes('too large')) {
-                throw error; // Re-throw size errors as-is
             }
             throw new Error(`Encryption failed: ${error.message}`);
         }

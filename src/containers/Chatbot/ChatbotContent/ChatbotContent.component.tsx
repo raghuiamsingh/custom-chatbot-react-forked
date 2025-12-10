@@ -205,6 +205,7 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
             messageId={state.sidebarState.messageId}
             messages={state.messages}
             zIndex={sidebarZIndex}
+            isLoadingProductInfo={state.sidebarState.isLoadingProductInfo}
           />
         </div>
       </div>
