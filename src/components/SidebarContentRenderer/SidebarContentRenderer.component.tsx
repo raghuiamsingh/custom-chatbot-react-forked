@@ -1,5 +1,7 @@
 import React from "react";
 import { ProductCard } from "@components";
+import { normalizeProduct } from "@utils/productNormalizer";
+import type { Product, RawProductApiResponse } from "@types";
 
 interface SidebarContentRendererProps {
   type: "product" | "guide" | "faq" | "labResult" | "image" | "linkList";
@@ -14,9 +16,11 @@ export const SidebarContentRenderer: React.FC<SidebarContentRendererProps> = ({
     case "product":
       return (
         <div className="grid grid-cols-1 gap-4">
-          {data.map((product, index) => (
-            <ProductCard key={index} {...product} />
-          ))}
+          {data.map((product, index) => {
+            // normalizeProduct handles both raw API responses and already-normalized products
+            const normalizedProduct = normalizeProduct(product as RawProductApiResponse | Product);
+            return <ProductCard key={normalizedProduct.sku || index} {...normalizedProduct} />;
+          })}
         </div>
       );
 

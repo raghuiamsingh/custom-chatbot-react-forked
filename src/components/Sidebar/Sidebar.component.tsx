@@ -118,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         style={{ animationDelay: "300ms" }}
                       ></div>
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading product information...</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
                   </div>
                 </div>
               ) : (

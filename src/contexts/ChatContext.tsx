@@ -4,6 +4,7 @@ import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
 import { buildApiUrl } from "../utils/apiUrl";
 import { INTRODUCTION_MESSAGE, parseStreamedText } from "@utils/constants";
+import { normalizeProducts } from "../utils/productNormalizer";
 
 // State interfaces
 interface ChatState {
@@ -191,6 +192,29 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                   initData: encryptedInitData
                 }),
               });
+
+              if (!response.ok) {
+                throw new Error(`Failed to fetch product info: ${response.status}`);
+              }
+
+              const data = await response.json();
+              
+              if (data.success && data.products && Array.isArray(data.products)) {
+                // Normalize the product data from API
+                const normalizedProducts = normalizeProducts(data.products);
+                
+                // Update the message with enriched product data
+                dispatch({
+                  type: "UPDATE_MESSAGE",
+                  payload: {
+                    id: state.sidebarState.messageId!,
+                    structured: {
+                      type: 'product',
+                      data: normalizedProducts
+                    }
+                  }
+                });
+              }
             } catch (error) {
               // Log error but don't block the UI
               console.error("Failed to call product-info API:", error);
@@ -215,6 +239,15 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
 
   // Send message function
   const sendMessage = async (content: string) => {
+    // Close sidebar when a new message is sent
+    if (state.sidebarState.isOpen) {
+      dispatch({
+        type: "SET_SIDEBAR_STATE",
+        payload: { isOpen: false, messageId: null, isLoadingProductInfo: false },
+      });
+      window.dispatchEvent(new CustomEvent('chatbotRecommendationsClosed'));
+    }
+
     // Hide initial suggestions on first interaction and add intro message to history
     if (state.showInitialSuggestions) {
       dispatch({ type: "SET_SHOW_INITIAL_SUGGESTIONS", payload: false });

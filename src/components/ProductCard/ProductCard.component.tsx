@@ -1,11 +1,18 @@
 import React from "react";
 import type { Product } from "@types";
 
-interface ProductCardProps extends Product { }
+interface ProductCardProps extends Partial<Product> {
+  // Allow alternative field names that might come from API
+  title?: string;
+  url?: string;
+  image?: string;
+  productId?: string;
+}
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   sku,
   name,
+  title,
   description,
   price,
   ingredients,
@@ -13,14 +20,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   dosage,
   warnings,
   productUrl,
+  url,
   imageUrl,
+  image,
   category,
   brand,
   servings,
   form,
 }) => {
-  const displayTitle = name || `Product: ${sku}`;
-  const productImage = imageUrl;
+  // Support both 'name' and 'title' fields
+  const displayTitle = name || title || (sku ? `Product: ${sku}` : 'Product');
+  // Support both 'imageUrl' and 'image' fields
+  const productImage = imageUrl || image;
 
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
     if (!sku) return;
@@ -87,21 +98,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Brand */}
           {brand && (
             <div className="flex items-center gap-1.5 mb-2.5">
-              <svg
-                className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-tight transition-colors duration-300 ease-in-out">
-                {brand}
+                by {brand}
               </p>
             </div>
           )}
@@ -179,6 +177,4 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {cardContent}
     </div>
   );
-
-  return cardContent;
 };
