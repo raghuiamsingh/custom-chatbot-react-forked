@@ -72,6 +72,29 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
       <div className="w-full px-6 py-4 transition-colors duration-300 ease-in-out">
         <div className="flex justify-between items-center mx-auto">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const event = new CustomEvent('closeChatbot');
+                window.dispatchEvent(event);
+              }}
+              className="p-2 text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center"
+              aria-label="Close Chatbot"
+            >
+              <svg
+                className="w-10 h-10"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
               viewBox="0 0 770 760" 

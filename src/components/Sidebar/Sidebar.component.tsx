@@ -51,13 +51,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const title = getTitle();
   const hasContent = structuredContent && structuredContent.data.length > 0;
   const shouldShow = isOpen && hasContent;
-  
+
   return (
     <aside
-      className={`sidebar-container flex-shrink-0 bg-white dark:bg-neutral-900 flex flex-col h-full overflow-hidden ${
-        shouldShow ? "border-l border-gray-200 dark:border-neutral-800" : ""
-      }`}
-      style={{ 
+      className={`sidebar-container flex-shrink-0 bg-white dark:bg-neutral-900 flex flex-col h-full overflow-hidden ${shouldShow ? "border-l border-gray-200 dark:border-neutral-800" : ""
+        }`}
+      style={{
         zIndex,
         width: shouldShow ? "550px" : "0",
         transition: "width 0.3s ease-in-out"
@@ -73,10 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             transition={{ duration: 0.2 }}
           >
             {/* Fixed Header */}
-            <div className="flex-shrink-0 bg-white dark:bg-neutral-900 border-b border-gray-100 dark:border-neutral-800 px-4 py-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                {title}
-              </h2>
+            <div className="bg-white dark:bg-neutral-900 px-4 flex items-center">
               <button
                 onClick={onClose}
                 className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -97,6 +93,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   />
                 </svg>
               </button>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {title}
+              </h2>
             </div>
 
             {/* Scrollable Content Area */}
