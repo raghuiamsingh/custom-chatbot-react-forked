@@ -10,6 +10,10 @@ interface SidebarProps {
   messages: Message[];
   zIndex?: number;
   isLoadingProductInfo?: boolean;
+  width?: number;
+  onResizeStart?: (e: React.MouseEvent) => void;
+  minWidth?: number;
+  isResizing?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -19,6 +23,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   messages,
   zIndex = 50,
   isLoadingProductInfo = false,
+  width = 550,
+  onResizeStart,
+  minWidth = 550,
+  isResizing = false,
 }) => {
   // Find the message with the given ID and extract structured content
   const message = messageId
@@ -54,25 +62,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`sidebar-container flex-shrink-0 bg-white dark:bg-neutral-900 flex flex-col h-full overflow-hidden ${shouldShow ? "border-l border-gray-200 dark:border-neutral-800" : ""
+      className={`sidebar-container flex-shrink-0 bg-white dark:bg-neutral-900 flex flex-col h-full overflow-hidden relative ${shouldShow ? "border-l border-gray-200 dark:border-neutral-800" : ""
         }`}
       style={{
         zIndex,
-        width: shouldShow ? "550px" : "0",
-        transition: "width 0.3s ease-in-out"
+        width: shouldShow ? `${width}px` : "0",
+        transition: isResizing ? "none" : "width 0.3s ease-in-out"
       }}
     >
+      {/* Resize Handle */}
+      {shouldShow && onResizeStart && (
+        <div
+          onMouseDown={onResizeStart}
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:w-1.5 hover:bg-blue-500 dark:hover:bg-blue-400 transition-all duration-200 z-10 group"
+          style={{ marginLeft: '-4px', paddingLeft: '4px', paddingRight: '4px' }}
+          aria-label="Resize sidebar"
+          title="Drag to resize"
+        >
+          <div className="w-full h-full bg-transparent group-hover:bg-blue-500 dark:group-hover:bg-blue-400 rounded transition-colors duration-200" />
+        </div>
+      )}
       <AnimatePresence>
         {shouldShow && (
           <motion.div
-            className="flex flex-col h-full w-[550px]"
+            className="flex flex-col h-full"
+            style={{ width: `${width}px` }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
             {/* Fixed Header */}
-            <div className="bg-white dark:bg-neutral-900 px-4 flex items-center">
+            <div className="bg-white dark:bg-neutral-900 px-6 py-4 flex items-center gap-3">
               <button
                 onClick={onClose}
                 className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
