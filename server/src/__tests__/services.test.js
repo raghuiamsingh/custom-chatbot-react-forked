@@ -1,4 +1,4 @@
-const BotDojoService = require('../services/BotDojoService');
+const BotDojoService = require('../services/BotDojoService').default;
 const { parseCanvasDataForStructuredContent, cleanTextContent } = require('../utils/canvasParser');
 const { normalizeImageUrl, isLikelyImage } = require('../utils/mediaUtils');
 
@@ -177,7 +177,7 @@ describe('Media Utils', () => {
   describe('normalizeImageUrl', () => {
     test('should handle relative paths', () => {
       const result = normalizeImageUrl('/media/image.jpg');
-      expect(result).toBe('https://uat.gethealthy.store/media/catalog/product/image.jpg');
+      expect(result).toBe('https://test.example.com/media/catalog/product/image.jpg');
     });
 
     test('should handle absolute URLs', () => {
