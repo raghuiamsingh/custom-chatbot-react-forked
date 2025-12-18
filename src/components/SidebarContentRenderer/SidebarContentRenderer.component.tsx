@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { ProductCard } from "@components";
 import { normalizeProduct } from "@utils/productNormalizer";
 import type { Product, RawProductApiResponse } from "@types";
@@ -6,21 +7,67 @@ import type { Product, RawProductApiResponse } from "@types";
 interface SidebarContentRendererProps {
   type: "product" | "guide" | "faq" | "labResult" | "image" | "linkList";
   data: any[];
+  displayedCount?: number;
+  onLoadMore?: () => void;
 }
 
 export const SidebarContentRenderer: React.FC<SidebarContentRendererProps> = ({
   type,
   data,
+  displayedCount,
+  onLoadMore,
 }) => {
   switch (type) {
     case "product":
+      // Determine how many products to display
+      const productsToShow = displayedCount !== undefined ? Math.min(displayedCount, data.length) : data.length;
+      const displayedProducts = data.slice(0, productsToShow);
+      const hasMoreProducts = data.length > productsToShow;
+      const shouldShowLoadMore = hasMoreProducts && data.length > 5;
+
       return (
-        <div className="grid grid-cols-1 gap-4">
-          {data.map((product, index) => {
-            // normalizeProduct handles both raw API responses and already-normalized products
-            const normalizedProduct = normalizeProduct(product as RawProductApiResponse | Product);
-            return <ProductCard key={normalizedProduct.sku || index} {...normalizedProduct} />;
-          })}
+        <div>
+          <div className="grid grid-cols-1 gap-4">
+            {displayedProducts.map((product, index) => {
+              // normalizeProduct handles both raw API responses and already-normalized products
+              const normalizedProduct = normalizeProduct(product as RawProductApiResponse | Product);
+              return <ProductCard key={normalizedProduct.sku || index} {...normalizedProduct} />;
+            })}
+          </div>
+          {shouldShowLoadMore && onLoadMore && (
+            <div className="mt-8 flex justify-center">
+              <motion.button
+                onClick={onLoadMore}
+                className="group relative flex items-center gap-1.5 px-5 py-2 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-700 hover:via-blue-600 hover:to-indigo-700 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 overflow-hidden"
+                whileHover={{ scale: 1.03, y: -1 }}
+                whileTap={{ scale: 0.97 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <span className="relative z-10 flex items-center gap-1.5">
+                  Load more
+                  <motion.svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                    animate={{ y: [0, -2, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </motion.svg>
+                </span>
+              </motion.button>
+            </div>
+          )}
         </div>
       );
 

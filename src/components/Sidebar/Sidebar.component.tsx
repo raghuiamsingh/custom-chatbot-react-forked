@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SidebarContentRenderer } from "@components";
 import { type Message } from "@types";
@@ -59,6 +59,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const title = getTitle();
   const hasContent = structuredContent && structuredContent.data.length > 0;
   const shouldShow = isOpen && hasContent;
+
+  // Pagination state - track how many products are displayed
+  const [displayedCount, setDisplayedCount] = useState(5);
+
+  // Reset displayed count when sidebar closes or message changes
+  useEffect(() => {
+    if (!isOpen || !messageId) {
+      setDisplayedCount(5);
+    } else {
+      // Reset when messageId changes
+      setDisplayedCount(5);
+    }
+  }, [isOpen, messageId]);
+
+  // Handle "Load more" button click
+  const handleLoadMore = () => {
+    setDisplayedCount((prev) => prev + 5);
+  };
 
   return (
     <aside
@@ -145,6 +163,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <SidebarContentRenderer
                   type={structuredContent.type}
                   data={structuredContent.data}
+                  displayedCount={structuredContent.type === "product" ? displayedCount : undefined}
+                  onLoadMore={structuredContent.type === "product" ? handleLoadMore : undefined}
                 />
               )}
             </div>
