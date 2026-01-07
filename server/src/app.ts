@@ -89,6 +89,7 @@ function getBotDojoConfigFromBody(req: Request): {
   BOTDOJO_ACCOUNT_ID: string;
   BOTDOJO_PROJECT_ID: string;
   BOTDOJO_FLOW_ID: string;
+  PRODUCT_SOURCE?: string;
 } {
   const body = req.body as any;
   const configData = body?.initData;
@@ -140,6 +141,7 @@ function getBotDojoConfigFromBody(req: Request): {
     BOTDOJO_ACCOUNT_ID: config.BOTDOJO_ACCOUNT_ID,
     BOTDOJO_PROJECT_ID: config.BOTDOJO_PROJECT_ID,
     BOTDOJO_FLOW_ID: config.BOTDOJO_FLOW_ID,
+    PRODUCT_SOURCE: config.PRODUCT_SOURCE,
   };
 }
 
@@ -226,6 +228,7 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
     accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
     projectId: requestConfig.BOTDOJO_PROJECT_ID,
     flowId: requestConfig.BOTDOJO_FLOW_ID,
+    productSource: requestConfig.PRODUCT_SOURCE,
   };
 
   // Check cache first
@@ -269,6 +272,10 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
   try {
     // Stream BotDojo API response to frontend
     // BotDojo sends tokens via onNewToken events, we extract and forward each token
+    const streamOptions: any = {};
+    if (activeConfig.productSource) {
+      streamOptions.product_source = activeConfig.productSource;
+    }
     const botdojoResponse = await service.streamMessage(sanitizedMessage, (token: string) => {
       // Send token to frontend as SSE immediately
       // token is already extracted from onNewToken event, just the text
@@ -279,7 +286,7 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
       if (typeof (res as any).flush === 'function') {
         (res as any).flush();
       }
-    });
+    }, streamOptions);
 
     // Transform the final response to extract products and suggested questions
     const transformedResponse = service.transformToNewFormat(botdojoResponse);
@@ -321,17 +328,26 @@ app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest
     accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
     projectId: requestConfig.BOTDOJO_PROJECT_ID,
     flowId: requestConfig.BOTDOJO_FLOW_ID,
+    productSource: requestConfig.PRODUCT_SOURCE,
   };
 
   // Call BotDojo API
-  const botdojoResponse = await service.sendMessage(sanitizedMessage);
+  const sendOptions: any = {};
+  if (activeConfig.productSource) {
+    sendOptions.product_source = activeConfig.productSource;
+  }
+  const botdojoResponse = await service.sendMessage(sanitizedMessage, sendOptions);
 
   // Return the raw response for inspection
+  const requestBody: any = { text_input: sanitizedMessage };
+  if (activeConfig.productSource) {
+    requestBody.product_source = activeConfig.productSource;
+  }
   res.json({
     success: true,
     rawResponse: botdojoResponse,
     endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
-    requestBody: { body: { text_input: sanitizedMessage } }
+    requestBody: { body: requestBody }
   });
 }));
 
@@ -358,9 +374,13 @@ app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsRespons
   }
 
   // Call BotDojo API for suggestions
+  const sendOptions: any = { requestType: "suggestions" };
+  if (requestConfig.PRODUCT_SOURCE) {
+    sendOptions.product_source = requestConfig.PRODUCT_SOURCE;
+  }
   const botdojoResponse = await service.sendMessage(
     sanitizedContext || "Please provide suggested follow-up questions",
-    { requestType: "suggestions" }
+    sendOptions
   );
 
   // Extract and normalize suggestions from BotDojo response

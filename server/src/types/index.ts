@@ -107,6 +107,7 @@ export interface ChatRequest {
     BOTDOJO_ACCOUNT_ID: string;
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_FLOW_ID: string;
+    PRODUCT_SOURCE?: string;
   };
 }
 
@@ -119,6 +120,7 @@ export interface SuggestionsRequest {
     BOTDOJO_ACCOUNT_ID: string;
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_FLOW_ID: string;
+    PRODUCT_SOURCE?: string;
   };
 }
 
@@ -130,6 +132,7 @@ export interface TestStructuredRequest {
     BOTDOJO_ACCOUNT_ID: string;
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_FLOW_ID: string;
+    PRODUCT_SOURCE?: string;
   };
 }
 
