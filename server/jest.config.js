@@ -6,8 +6,7 @@ module.exports = {
     'src/**/*.ts',
     'src/**/*.js',
     '!src/__tests__/**',
-    '!src/app.ts',
-    '!src/app.js'
+    '!src/app.ts'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

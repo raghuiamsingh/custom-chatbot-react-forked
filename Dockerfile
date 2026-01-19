@@ -19,7 +19,12 @@
     # copy server source
     COPY server ./server
     
+    # build server TypeScript
+    WORKDIR /app/server
+    RUN npm run build
+    
     # copy built frontend into server/public
+    WORKDIR /app
     COPY --from=build-frontend /app/dist ./server/public
     
     ENV NODE_ENV=production
@@ -29,5 +34,5 @@
     # BotDojo API credentials must be provided in request body as initData field (encrypted or plain JSON) for each API request
     
     WORKDIR /app/server
-    CMD ["node", "server.js"]
+    CMD ["npm", "start"]
     

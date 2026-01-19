@@ -90,6 +90,7 @@ function getBotDojoConfigFromBody(req: Request): {
   BOTDOJO_PROJECT_ID: string;
   BOTDOJO_FLOW_ID: string;
   PRODUCT_SOURCE?: string;
+  STORE_CODE?: string;
 } {
   const body = req.body as any;
   const configData = body?.initData;
@@ -142,6 +143,7 @@ function getBotDojoConfigFromBody(req: Request): {
     BOTDOJO_PROJECT_ID: config.BOTDOJO_PROJECT_ID,
     BOTDOJO_FLOW_ID: config.BOTDOJO_FLOW_ID,
     PRODUCT_SOURCE: config.PRODUCT_SOURCE,
+    STORE_CODE: config.STORE_CODE,
   };
 }
 
@@ -229,6 +231,7 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
     projectId: requestConfig.BOTDOJO_PROJECT_ID,
     flowId: requestConfig.BOTDOJO_FLOW_ID,
     productSource: requestConfig.PRODUCT_SOURCE,
+    storeCode: requestConfig.STORE_CODE,
   };
 
   // Check cache first
@@ -275,6 +278,9 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
     const streamOptions: any = {};
     if (activeConfig.productSource) {
       streamOptions.product_source = activeConfig.productSource;
+    }
+    if (activeConfig.storeCode) {
+      streamOptions.store_code = activeConfig.storeCode;
     }
     const botdojoResponse = await service.streamMessage(sanitizedMessage, (token: string) => {
       // Send token to frontend as SSE immediately
@@ -329,6 +335,7 @@ app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest
     projectId: requestConfig.BOTDOJO_PROJECT_ID,
     flowId: requestConfig.BOTDOJO_FLOW_ID,
     productSource: requestConfig.PRODUCT_SOURCE,
+    storeCode: requestConfig.STORE_CODE,
   };
 
   // Call BotDojo API
@@ -336,12 +343,18 @@ app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest
   if (activeConfig.productSource) {
     sendOptions.product_source = activeConfig.productSource;
   }
+  if (activeConfig.storeCode) {
+    sendOptions.store_code = activeConfig.storeCode;
+  }
   const botdojoResponse = await service.sendMessage(sanitizedMessage, sendOptions);
 
   // Return the raw response for inspection
   const requestBody: any = { text_input: sanitizedMessage };
   if (activeConfig.productSource) {
     requestBody.product_source = activeConfig.productSource;
+  }
+  if (activeConfig.storeCode) {
+    requestBody.store_code = activeConfig.storeCode;
   }
   res.json({
     success: true,
@@ -377,6 +390,9 @@ app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsRespons
   const sendOptions: any = { requestType: "suggestions" };
   if (requestConfig.PRODUCT_SOURCE) {
     sendOptions.product_source = requestConfig.PRODUCT_SOURCE;
+  }
+  if (requestConfig.STORE_CODE) {
+    sendOptions.store_code = requestConfig.STORE_CODE;
   }
   const botdojoResponse = await service.sendMessage(
     sanitizedContext || "Please provide suggested follow-up questions",
@@ -691,14 +707,6 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
     });
   }
 
-  if (!practiceToken) {
-    logger.warn('SOURCE_PRACTICE_TOKEN not found in initData', { requestId });
-    return res.json({
-      success: false,
-      error: 'SOURCE_PRACTICE_TOKEN is required in initData'
-    });
-  }
-
   if (!sourceAuthToken) {
     logger.warn('SOURCE_AUTH_TOKEN not found in initData', { requestId });
     return res.json({
@@ -711,13 +719,19 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
   const productInfoPromises = products.map(async (sku: string) => {
     try {
       const productUrl = `${sourceApiBaseUrl}/dispensary/catalog/product/${sku}`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sourceAuthToken}`,
+      };
+      
+      // Only include Practice-Token header if practiceToken is provided
+      if (practiceToken) {
+        headers['Practice-Token'] = practiceToken;
+      }
+      
       const response = await fetch(productUrl, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Practice-Token': `${practiceToken}`,
-          'Authorization': `Bearer ${sourceAuthToken}`,
-        },
+        headers,
       });
 
       if (!response.ok) {

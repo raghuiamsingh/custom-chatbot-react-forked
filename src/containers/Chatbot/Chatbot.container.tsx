@@ -10,9 +10,10 @@ export interface InitData {
   BOTDOJO_FLOW_ID: string;
   BOTDOJO_API_ENDPOINT?: string; // API endpoint prefix (e.g., "/api/v1" for prod, "" or "/" for local)
   SOURCE_API_BASE_URL: string;
-  SOURCE_PRACTICE_TOKEN: string; // Token for authenticating with the source API
+  SOURCE_PRACTICE_TOKEN?: string; // Token for authenticating with the source API (optional)
   SOURCE_AUTH_TOKEN: string; // Additional authentication token for the source API
   PRODUCT_SOURCE?: string; // Product source identifier for BotDojo API
+  STORE_CODE?: string; // Store code identifier for BotDojo API
 }
 
 export interface ChatbotProps {
@@ -20,7 +21,7 @@ export interface ChatbotProps {
   baseFontSize?: number;
   sidebarZIndex?: number;
   maxHeight?: number;
-  initData: InitData;
+  initData?: InitData;
 }
 
 export const Chatbot: FC<ChatbotProps> = ({
@@ -30,9 +31,9 @@ export const Chatbot: FC<ChatbotProps> = ({
   maxHeight,
   initData
 }) => {
-  // Validate mandatory SOURCE_PRACTICE_TOKEN
-  if (!initData.SOURCE_PRACTICE_TOKEN || typeof initData.SOURCE_PRACTICE_TOKEN !== 'string' || initData.SOURCE_PRACTICE_TOKEN.trim() === '') {
-    throw new Error('SOURCE_PRACTICE_TOKEN is required and must be a non-empty string in initData');
+
+  if (!initData) {
+    throw new Error('initData is required');
   }
 
   // Validate mandatory SOURCE_API_BASE_URL
