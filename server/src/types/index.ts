@@ -108,7 +108,7 @@ export interface ChatRequest {
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_FLOW_ID: string;
     PRODUCT_SOURCE?: string;
-    STORE_CODE?: string;
+    STORE?: string;
   };
 }
 
@@ -122,7 +122,7 @@ export interface SuggestionsRequest {
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_FLOW_ID: string;
     PRODUCT_SOURCE?: string;
-    STORE_CODE?: string;
+    STORE?: string;
   };
 }
 
@@ -135,7 +135,7 @@ export interface TestStructuredRequest {
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_FLOW_ID: string;
     PRODUCT_SOURCE?: string;
-    STORE_CODE?: string;
+    STORE?: string;
   };
 }
 

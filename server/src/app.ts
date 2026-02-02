@@ -90,7 +90,7 @@ function getBotDojoConfigFromBody(req: Request): {
   BOTDOJO_PROJECT_ID: string;
   BOTDOJO_FLOW_ID: string;
   PRODUCT_SOURCE?: string;
-  STORE_CODE?: string;
+  STORE?: string;
 } {
   const body = req.body as any;
   const configData = body?.initData;
@@ -143,7 +143,7 @@ function getBotDojoConfigFromBody(req: Request): {
     BOTDOJO_PROJECT_ID: config.BOTDOJO_PROJECT_ID,
     BOTDOJO_FLOW_ID: config.BOTDOJO_FLOW_ID,
     PRODUCT_SOURCE: config.PRODUCT_SOURCE,
-    STORE_CODE: config.STORE_CODE,
+    STORE: config.STORE,
   };
 }
 
@@ -231,7 +231,7 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
     projectId: requestConfig.BOTDOJO_PROJECT_ID,
     flowId: requestConfig.BOTDOJO_FLOW_ID,
     productSource: requestConfig.PRODUCT_SOURCE,
-    storeCode: requestConfig.STORE_CODE,
+    store: requestConfig.STORE,
   };
 
   // Check cache first
@@ -279,8 +279,8 @@ app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest
     if (activeConfig.productSource) {
       streamOptions.product_source = activeConfig.productSource;
     }
-    if (activeConfig.storeCode) {
-      streamOptions.store_code = activeConfig.storeCode;
+    if (activeConfig.store) {
+      streamOptions.store = activeConfig.store;
     }
     const botdojoResponse = await service.streamMessage(sanitizedMessage, (token: string) => {
       // Send token to frontend as SSE immediately
@@ -335,7 +335,7 @@ app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest
     projectId: requestConfig.BOTDOJO_PROJECT_ID,
     flowId: requestConfig.BOTDOJO_FLOW_ID,
     productSource: requestConfig.PRODUCT_SOURCE,
-    storeCode: requestConfig.STORE_CODE,
+    store: requestConfig.STORE,
   };
 
   // Call BotDojo API
@@ -343,8 +343,8 @@ app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest
   if (activeConfig.productSource) {
     sendOptions.product_source = activeConfig.productSource;
   }
-  if (activeConfig.storeCode) {
-    sendOptions.store_code = activeConfig.storeCode;
+  if (activeConfig.store) {
+    sendOptions.store = activeConfig.store;
   }
   const botdojoResponse = await service.sendMessage(sanitizedMessage, sendOptions);
 
@@ -353,8 +353,8 @@ app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest
   if (activeConfig.productSource) {
     requestBody.product_source = activeConfig.productSource;
   }
-  if (activeConfig.storeCode) {
-    requestBody.store_code = activeConfig.storeCode;
+  if (activeConfig.store) {
+    requestBody.store = activeConfig.store;
   }
   res.json({
     success: true,
@@ -391,8 +391,8 @@ app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsRespons
   if (requestConfig.PRODUCT_SOURCE) {
     sendOptions.product_source = requestConfig.PRODUCT_SOURCE;
   }
-  if (requestConfig.STORE_CODE) {
-    sendOptions.store_code = requestConfig.STORE_CODE;
+  if (requestConfig.STORE) {
+    sendOptions.store = requestConfig.STORE;
   }
   const botdojoResponse = await service.sendMessage(
     sanitizedContext || "Please provide suggested follow-up questions",

@@ -13,7 +13,7 @@ export interface InitData {
   SOURCE_PRACTICE_TOKEN?: string; // Token for authenticating with the source API (optional)
   SOURCE_AUTH_TOKEN: string; // Additional authentication token for the source API
   PRODUCT_SOURCE?: string; // Product source identifier for BotDojo API
-  STORE_CODE?: string; // Store code identifier for BotDojo API
+  STORE?: string; // Store identifier for BotDojo API
 }
 
 export interface ChatbotProps {
