@@ -188,7 +188,8 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                   "Authorization": `Bearer ${initData.BOTDOJO_API_KEY}`
                 },
                 body: JSON.stringify({
-                  products,
+                  // TODO: this is a temporary fix for BotDojo's issue, to ensure the products are formatted correctly for the API
+                  products: products.map((item) => item.split(" ").join("-")),
                   initData: encryptedInitData
                 }),
               });
