@@ -6,6 +6,30 @@ import React from "react";
 export const INTRODUCTION_MESSAGE = "**Hi! I'm JAINE, your product discovery sidekick.**\nWhen you need to quickly identify the right product for a client, I'm here to help. Share the health concern, goal, or ingredient preference, and I'll streamline your search so you can make confident, targeted recommendations without digging through the entire catalog.\n\nTell me what your client needs, and I'll do the heavy lifting.";
 
 /**
+ * Rotating loading texts while waiting for stream to start (supplements bot scope)
+ */
+export const LOADING_TEXTS = [
+  "Thinking...",
+  "Reviewing your request...",
+  "Looking through supplements...",
+  "Checking ingredients...",
+  "Finding suitable options...",
+  "Identifying relevant matches...",
+];
+
+/**
+ * Rotating loading texts while text is streaming from server
+ */
+export const STREAMING_LOADING_TEXTS = [
+  "Preparing your response...",
+  "Organizing recommendations...",
+  "Adding key details...",
+  "Refining the results...",
+  "Finalizing...",
+  "Almost there...",
+];
+
+/**
  * Suggested questions organized by category
  * Single source of truth for all suggested questions
  */

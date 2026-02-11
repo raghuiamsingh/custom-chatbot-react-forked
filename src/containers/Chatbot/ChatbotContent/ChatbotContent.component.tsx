@@ -233,6 +233,7 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
               onViewRecommendations={handleViewRecommendations}
               onRemoveSuggestions={handleRemoveSuggestions}
               isLoading={state.isLoading}
+              requestStartTime={state.requestStartTime}
               onScrollChange={handleScrollChange}
             />
 

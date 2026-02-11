@@ -1,8 +1,9 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { MessageBubble, ButtonGroup, SuggestedQuestions, ProductCard } from "@components";
+import { MessageBubble, ButtonGroup, SuggestedQuestions, ProductCard, TypingIndicator } from "@components";
 import { type Message, type Product } from "@types";
 import { parseMarkdownBold } from "@utils/constants";
+import { formatDuration } from "@utils/formatDuration";
 
 interface MessageRendererProps {
   message: Message;
@@ -13,16 +14,24 @@ interface MessageRendererProps {
   onViewRecommendations?: (messageId: string) => void;
   onRemoveSuggestions?: (messageId: string) => void;
   isLoading?: boolean;
+  isTextStreaming?: boolean;
+  requestStartTime?: number | null;
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({
   message,
+  messages,
+  messageIndex,
   onButtonClick,
   onQuestionClick,
   onViewRecommendations,
   onRemoveSuggestions,
   isLoading = false,
+  isTextStreaming = false,
+  requestStartTime = null,
 }) => {
+  const isLastMessage = messageIndex === messages.length - 1;
+  const showLoadingState = isLoading && message.role === "bot" && message.type === "text" && isLastMessage;
   const isUser = message.role === "user";
 
   // No longer need consecutive product grouping since products are stored as structured content
@@ -41,12 +50,33 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   }
 
 
+  // Typing message - loading text at top
+  if (message.type === "typing") {
+    return (
+      <div className="px-4 py-3">
+        <div className="mb-2">
+          <TypingIndicator variant="pre-stream" requestStartTime={requestStartTime} />
+        </div>
+      </div>
+    );
+  }
+
   // Bot messages: professional content blocks
   return (
     <div>
       <div className="mx-auto">
         {message.type === "text" && (
           <div className="px-4 py-3">
+            {/* Loading text at top when loading; finished text when done */}
+            {message.responseTimeSeconds != null ? (
+              <div className="mb-2 text-[15px] text-gray-500 dark:text-gray-400">
+                Finished in {formatDuration(message.responseTimeSeconds)}
+              </div>
+            ) : showLoadingState && (
+              <div className="mb-2">
+                <TypingIndicator variant={(isTextStreaming || message.content.text.length > 0) ? "streaming" : "pre-stream"} requestStartTime={requestStartTime} />
+              </div>
+            )}
             <div className="text-base leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap transition-colors duration-300 ease-in-out">
               {parseMarkdownBold(message.content.text)}
             </div>

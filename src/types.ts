@@ -10,6 +10,7 @@ export type Message = {
   }; // Optional structured content for sidebar with content type
   isLoadingProducts?: boolean; // Loading state for products
   isLoadingSuggestions?: boolean; // Loading state for suggested questions
+  responseTimeSeconds?: number; // Time from request start to stream completion
 };
 
 // Raw product data from the API
