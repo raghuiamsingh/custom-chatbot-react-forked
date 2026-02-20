@@ -209,6 +209,35 @@
   background-color: rgba(113, 128, 150, 0.8);
 }
 
+/* Shimmer effect for loading text */
+@keyframes shimmer-sweep {
+  0% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: 0 center;
+  }
+}
+
+.chatbot-container .shimmer-text {
+  --shimmer-base: rgb(107 114 128);
+  --shimmer-band: rgb(35, 44, 64);
+  --shimmer-spread: 32px;
+  --shimmer-bg: linear-gradient(
+    90deg,
+    transparent calc(50% - var(--shimmer-spread)),
+    var(--shimmer-band),
+    transparent calc(50% + var(--shimmer-spread))
+  );
+  color: transparent;
+  background-image: var(--shimmer-bg), linear-gradient(var(--shimmer-base), var(--shimmer-base));
+  background-size: 250% 100%, auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-sweep 2s ease-in-out infinite;
+}
+
 /* 3D effect for scroll to bottom button */
 .chatbot-container .scroll-to-bottom-btn {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 

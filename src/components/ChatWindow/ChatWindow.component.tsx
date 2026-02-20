@@ -11,6 +11,7 @@ interface ChatWindowProps {
   onViewRecommendations?: (messageId: string) => void;
   onRemoveSuggestions?: (messageId: string) => void;
   isLoading?: boolean;
+  requestStartTime?: number | null;
   onScrollChange?: (isNearBottom: boolean) => void;
 }
 
@@ -29,6 +30,7 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
   onViewRecommendations,
   onRemoveSuggestions,
   isLoading = false,
+  requestStartTime = null,
   onScrollChange,
 }, ref) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -142,37 +144,31 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
     }
   }, [isLoading]);
 
-  // Memoized: Determine if we should show loading dot
-  // Show when: waiting for response OR after text streaming but still loading products/suggestions
-  // Hide when: text is actively streaming
-  const shouldShowLoadingDot = useMemo(() => {
-    if (!isLoading || messages.length === 0) return false;
-
+  // Memo: Show streaming dot if bot is streaming or loading products/suggestions
+  const shouldShowStreamingDot = useMemo(() => {
     const lastMessage = messages[messages.length - 1];
 
-    // If last message is not a bot text message with content, show dot (waiting for initial response)
+    // Check if the last message is a bot text message with actual content
     const hasBotTextContent = lastMessage?.role === 'bot' &&
         lastMessage.type === 'text' &&
         lastMessage.content?.text &&
         lastMessage.content.text.length > 0;
 
-    if (!hasBotTextContent) {
+    if (hasBotTextContent && isTextStreaming) {
       return true;
     }
 
-    // If text is actively streaming, hide the dot
-    if (isTextStreaming) {
-      return false;
-    }
-
-    // Text has stopped streaming - check if products or suggestions are still loading
-    if (lastBotTextMessage?.isLoadingProducts || lastBotTextMessage?.isLoadingSuggestions) {
+    // If text is not streaming but product or suggestion loading is still happening for the last bot text message
+    if (
+      hasBotTextContent &&
+      (lastBotTextMessage?.isLoadingProducts || lastBotTextMessage?.isLoadingSuggestions)
+    ) {
       return true;
     }
 
-    // Everything is loaded
+    // All loading is done, indicator should be hidden
     return false;
-  }, [isLoading, messages, isTextStreaming, lastBotTextMessage]);
+  }, [messages, isTextStreaming, lastBotTextMessage]);
 
   return (
     <div
@@ -236,13 +232,15 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
                     onViewRecommendations={onViewRecommendations}
                     onRemoveSuggestions={onRemoveSuggestions}
                     isLoading={isLoading}
+                    isTextStreaming={isTextStreaming}
+                    requestStartTime={requestStartTime}
                   />
                 </div>
               ))}
             </div>
 
             {/* Loading dot when waiting for response (not during active streaming) */}
-            {shouldShowLoadingDot && (
+            {shouldShowStreamingDot && (
               <div className="mb-6">
                 <div className="px-4 pt-2">
                   <motion.div

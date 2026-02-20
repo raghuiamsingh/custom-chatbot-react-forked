@@ -16,6 +16,7 @@ interface ChatState {
   showContentTester: boolean;
   debugMode: boolean;
   abortController: AbortController | null;
+  requestStartTime: number | null;
 }
 
 // Action types
@@ -32,6 +33,7 @@ type ChatAction =
   | { type: "SET_SHOW_CONTENT_TESTER"; payload: boolean }
   | { type: "SET_DEBUG_MODE"; payload: boolean }
   | { type: "SET_ABORT_CONTROLLER"; payload: AbortController | null }
+  | { type: "SET_REQUEST_START_TIME"; payload: number | null }
   | { type: "REMOVE_SUGGESTIONS"; payload: string }
   | { type: "RESET_CHAT" };
 
@@ -45,6 +47,7 @@ const initialState: ChatState = {
   showContentTester: false,
   debugMode: true,
   abortController: null,
+  requestStartTime: null,
 };
 
 // Reducer
@@ -95,6 +98,9 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case "SET_ABORT_CONTROLLER":
       return { ...state, abortController: action.payload };
+
+    case "SET_REQUEST_START_TIME":
+      return { ...state, requestStartTime: action.payload };
 
     case "REMOVE_SUGGESTIONS":
       return {
@@ -284,12 +290,16 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
 
     dispatch({ type: "ADD_MESSAGES", payload: [userMessage, typingMessage] });
     dispatch({ type: "SET_LOADING", payload: true });
+    dispatch({ type: "SET_REQUEST_START_TIME", payload: Date.now() });
 
     // Create new AbortController for this request
     const controller = new AbortController();
     dispatch({ type: "SET_ABORT_CONTROLLER", payload: controller });
 
     try {
+      // Record request start time
+      const requestStartTime = Date.now();
+
       // Encrypt initData before sending
       // Will automatically fall back to plain text if encryption is not available
       const encryptedInitData = await encryptInitData(initData);
@@ -466,7 +476,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                 }
               } else if (data.type === 'done') {
                 // Stream complete - process final response for products and suggestions
-                
+                const elapsedSeconds = Math.round((Date.now() - requestStartTime) / 1000);
                 // Final parse of accumulated text to ensure we have the complete "text" field
                 const trimmed = accumulatedRawText.trim();
                 if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -567,6 +577,15 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                     }
                   });
                 }
+
+                // Add response time to the message
+                dispatch({
+                  type: "UPDATE_MESSAGE",
+                  payload: {
+                    id: botMessageId,
+                    responseTimeSeconds: elapsedSeconds,
+                  }
+                });
               } else if (data.type === 'error') {
                 console.error('Stream error:', data.error);
                 throw new Error(data.error || 'Stream error');
@@ -666,6 +685,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
       dispatch({ type: "SET_ABORT_CONTROLLER", payload: null });
+      dispatch({ type: "SET_REQUEST_START_TIME", payload: null });
     }
   };
 
