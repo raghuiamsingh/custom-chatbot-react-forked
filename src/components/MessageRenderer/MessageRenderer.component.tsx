@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { MessageBubble, ButtonGroup, SuggestedQuestions, ProductCard, TypingIndicator } from "@components";
 import { type Message, type Product } from "@types";
-import { parseMarkdownBold } from "@utils/constants";
+import { parseMarkdownBold, parseStreamedText } from "@utils/constants";
 import { formatDuration } from "@utils/formatDuration";
 
 interface MessageRendererProps {
@@ -62,6 +62,9 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   }
 
   // Bot messages: professional content blocks
+  // Extract plain text when content is the raw JSON object (text + suggestedQuestions + products)
+  const displayText = parseStreamedText(message.content.text || "");
+
   return (
     <div>
       <div className="mx-auto">
@@ -74,11 +77,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
               </div>
             ) : showLoadingState && (
               <div className="mb-2">
-                <TypingIndicator variant={(isTextStreaming || message.content.text.length > 0) ? "streaming" : "pre-stream"} requestStartTime={requestStartTime} />
+                <TypingIndicator variant={(isTextStreaming || displayText.length > 0) ? "streaming" : "pre-stream"} requestStartTime={requestStartTime} />
               </div>
             )}
             <div className="text-base leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap transition-colors duration-300 ease-in-out">
-              {parseMarkdownBold(message.content.text)}
+              {parseMarkdownBold(displayText)}
             </div>
 
 

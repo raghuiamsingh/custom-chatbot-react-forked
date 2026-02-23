@@ -77,20 +77,6 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
     }
   }, [onScrollChange]);
 
-  useEffect(() => {
-    // Only scroll when a bot response is received (last message is from bot)
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === "bot" && lastMessage.type !== "typing") {
-        // Scroll 20px down smoothly
-        scrollContainerRef.current?.scrollBy({
-          top: 20,
-          behavior: "smooth",
-        });
-      }
-    }
-  }, [messages]);
-
   // Memoized: Find the last bot message with text type (for streaming detection)
   const lastBotTextMessage = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
