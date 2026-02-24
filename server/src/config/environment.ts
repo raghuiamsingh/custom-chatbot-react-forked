@@ -14,6 +14,7 @@ export interface BotDojoConfig {
   accountId?: string;
   projectId?: string;
   flowId?: string;
+  flowIdProducts?: string;
   mediaBase: string;
 }
 
@@ -28,7 +29,8 @@ export const botdojoConfig: BotDojoConfig = {
   baseUrl: process.env.BOTDOJO_BASE_URL,
   accountId: process.env.BOTDOJO_ACCOUNT_ID,
   projectId: process.env.BOTDOJO_PROJECT_ID,
-  flowId: process.env.BOTDOJO_FLOW_ID,
+  flowId: process.env.BOTDOJO_TEXT_FLOW_ID,
+  flowIdProducts: process.env.BOTDOJO_PRODUCTS_FLOW_ID,
   mediaBase: process.env.MEDIA_BASE || "https://uat.gethealthy.store",
 };
 

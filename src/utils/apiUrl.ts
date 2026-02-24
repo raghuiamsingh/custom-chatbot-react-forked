@@ -1,6 +1,6 @@
 /**
  * Build API URL with endpoint prefix
- * @param path - API path (e.g., "/chat", "/suggestions")
+ * @param path - API path (e.g., "/text-suggQ", "/products", "/suggestions")
  * @param endpoint - Optional endpoint prefix (e.g., "/api/v1" for prod, "" or "/" for local)
  * @returns Full API URL
  */

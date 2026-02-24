@@ -22,7 +22,8 @@ Express.js server that handles chat requests and integrates with BotDojo API.
    ```bash
    export BOTDOJO_API_KEY="your-api-key-here"
    export BOTDOJO_BASE_URL="https://api.botdojo.com/v1/flows"
-   export BOTDOJO_FLOW_ID="your-flow-id-here"
+   export BOTDOJO_TEXT_FLOW_ID="your-text-flow-id-here"
+   export BOTDOJO_PRODUCTS_FLOW_ID="your-products-flow-id-here"
    export PORT=3001
    ```
 

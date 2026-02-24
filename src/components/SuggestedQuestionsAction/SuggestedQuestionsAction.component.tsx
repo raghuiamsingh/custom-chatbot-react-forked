@@ -9,7 +9,8 @@ interface InitData {
   BOTDOJO_BASE_URL: string;
   BOTDOJO_ACCOUNT_ID: string;
   BOTDOJO_PROJECT_ID: string;
-  BOTDOJO_FLOW_ID: string;
+  BOTDOJO_TEXT_FLOW_ID: string;
+  BOTDOJO_PRODUCTS_FLOW_ID: string;
   BOTDOJO_API_ENDPOINT?: string; // API endpoint prefix (e.g., "/api/v1" for prod, "" or "/" for local)
 }
 

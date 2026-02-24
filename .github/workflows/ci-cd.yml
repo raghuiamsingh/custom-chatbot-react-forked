@@ -93,7 +93,8 @@ jobs:
           BOTDOJO_BASE_URL: https://test.example.com
           BOTDOJO_ACCOUNT_ID: test-account
           BOTDOJO_PROJECT_ID: test-project
-          BOTDOJO_FLOW_ID: test-flow
+          BOTDOJO_TEXT_FLOW_ID: test-flow-text
+          BOTDOJO_PRODUCTS_FLOW_ID: test-flow-products
 
       - name: Build TypeScript
         working-directory: ./server
