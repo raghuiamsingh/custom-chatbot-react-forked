@@ -306,7 +306,7 @@ Ensure all required environment variables are set in production:
    - Verify API credentials are provided in request body as initData field (encrypted or plain JSON)
    - Check network connectivity
    - Review API rate limits
-   - Ensure all required fields (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_FLOW_ID) are included
+   - Ensure all required fields (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_TEXT_FLOW_ID, BOTDOJO_PRODUCTS_FLOW_ID) are included
 
 2. **Cache Issues**
    - Clear cache via `/cache/clear` endpoint

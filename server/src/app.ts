@@ -66,7 +66,8 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use('/chat', limiter);
+app.use('/text-suggQ', limiter);
+app.use('/products', limiter);
 app.use('/suggestions', limiter);
 app.use('/product-info', limiter);
 
@@ -88,7 +89,8 @@ function getBotDojoConfigFromBody(req: Request): {
   BOTDOJO_BASE_URL: string;
   BOTDOJO_ACCOUNT_ID: string;
   BOTDOJO_PROJECT_ID: string;
-  BOTDOJO_FLOW_ID: string;
+  BOTDOJO_TEXT_FLOW_ID: string;
+  BOTDOJO_PRODUCTS_FLOW_ID: string;
   PRODUCT_SOURCE?: string;
   STORE?: string;
 } {
@@ -132,8 +134,8 @@ function getBotDojoConfigFromBody(req: Request): {
   }
 
   // Validate required fields
-  if (!config.BOTDOJO_API_KEY || !config.BOTDOJO_BASE_URL || !config.BOTDOJO_ACCOUNT_ID || !config.BOTDOJO_PROJECT_ID || !config.BOTDOJO_FLOW_ID) {
-    throw new Error('BotDojo configuration is incomplete. Please provide all required BotDojo credentials (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_FLOW_ID).');
+  if (!config.BOTDOJO_API_KEY || !config.BOTDOJO_BASE_URL || !config.BOTDOJO_ACCOUNT_ID || !config.BOTDOJO_PROJECT_ID || !config.BOTDOJO_TEXT_FLOW_ID || !config.BOTDOJO_PRODUCTS_FLOW_ID) {
+    throw new Error('BotDojo configuration is incomplete. Please provide all required BotDojo credentials (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_TEXT_FLOW_ID, BOTDOJO_PRODUCTS_FLOW_ID).');
   }
 
   return {
@@ -141,30 +143,30 @@ function getBotDojoConfigFromBody(req: Request): {
     BOTDOJO_BASE_URL: config.BOTDOJO_BASE_URL,
     BOTDOJO_ACCOUNT_ID: config.BOTDOJO_ACCOUNT_ID,
     BOTDOJO_PROJECT_ID: config.BOTDOJO_PROJECT_ID,
-    BOTDOJO_FLOW_ID: config.BOTDOJO_FLOW_ID,
+    BOTDOJO_TEXT_FLOW_ID: config.BOTDOJO_TEXT_FLOW_ID,
+    BOTDOJO_PRODUCTS_FLOW_ID: config.BOTDOJO_PRODUCTS_FLOW_ID,
     PRODUCT_SOURCE: config.PRODUCT_SOURCE,
     STORE: config.STORE,
   };
 }
 
 // Helper function to get BotDojoService instance from request body
-// Accepts optional config to avoid duplicate parsing
-function getBotDojoService(req: Request, requestConfig?: {
+// flowType: 'text' uses BOTDOJO_TEXT_FLOW_ID, 'products' uses BOTDOJO_PRODUCTS_FLOW_ID
+function getBotDojoService(req: Request, requestConfig: {
   BOTDOJO_API_KEY: string;
   BOTDOJO_BASE_URL: string;
   BOTDOJO_ACCOUNT_ID: string;
   BOTDOJO_PROJECT_ID: string;
-  BOTDOJO_FLOW_ID: string;
-}): BotDojoService {
-  // Use provided config or parse from body
-  const config = requestConfig || getBotDojoConfigFromBody(req);
-
+  BOTDOJO_TEXT_FLOW_ID: string;
+  BOTDOJO_PRODUCTS_FLOW_ID: string;
+}, flowType: 'text' | 'products'): BotDojoService {
+  const flowId = flowType === 'text' ? requestConfig.BOTDOJO_TEXT_FLOW_ID : requestConfig.BOTDOJO_PRODUCTS_FLOW_ID;
   const serviceConfig = {
-    apiKey: config.BOTDOJO_API_KEY,
-    baseUrl: config.BOTDOJO_BASE_URL,
-    accountId: config.BOTDOJO_ACCOUNT_ID,
-    projectId: config.BOTDOJO_PROJECT_ID,
-    flowId: config.BOTDOJO_FLOW_ID,
+    apiKey: requestConfig.BOTDOJO_API_KEY,
+    baseUrl: requestConfig.BOTDOJO_BASE_URL,
+    accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
+    projectId: requestConfig.BOTDOJO_PROJECT_ID,
+    flowId,
     mediaBase: botdojoConfig.mediaBase,
   };
 
@@ -210,105 +212,94 @@ app.get('/encryption/public-key', (req: Request, res: Response) => {
   }
 });
 
-// Chat endpoint
-app.post('/chat', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest>, res: Response<ChatResponse>) => {
+// Text + suggested questions stream (BOTDOJO_TEXT_FLOW_ID)
+app.post('/text-suggQ', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest>, res: Response) => {
   const requestId = req.headers['x-request-id'] as string;
   const { message } = req.body;
 
-  // Input validation
   validateString(message, 'message', 1000);
 
   const sanitizedMessage = sanitizeString(message);
   logger.chatRequest(sanitizedMessage, { requestId });
 
-  // Get BotDojoService instance from request body
   const requestConfig = getBotDojoConfigFromBody(req);
-  const service = getBotDojoService(req, requestConfig);
-  const activeConfig = {
-    apiKey: requestConfig.BOTDOJO_API_KEY,
-    baseUrl: requestConfig.BOTDOJO_BASE_URL,
-    accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
-    projectId: requestConfig.BOTDOJO_PROJECT_ID,
-    flowId: requestConfig.BOTDOJO_FLOW_ID,
-    productSource: requestConfig.PRODUCT_SOURCE,
-    store: requestConfig.STORE,
-  };
-
-  // Check cache first
-  const cachedResponse = cacheManager.getBotDojoResponse(sanitizedMessage);
-  if (cachedResponse) {
-    logger.info('Using cached BotDojo response', { requestId });
-    const transformedResponse = service.transformToNewFormat(cachedResponse);
-    logger.chatResponse([{ id: 'transformed', role: 'bot', type: 'text', content: { text: transformedResponse.text } }], { requestId });
-
-    return res.json({
-      text: transformedResponse.text,
-      suggestedQuestions: transformedResponse.suggestedQuestions,
-      products: transformedResponse.products,
-      debug: {
-        rawBotDojoResponse: cachedResponse,
-        endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
-        requestBody: {
-          options: {
-            stream: 'http'
-          },
-          body: {
-            text_input: sanitizedMessage
-          }
-        },
-        cached: true
-      }
-    });
+  const textService = getBotDojoService(req, requestConfig, 'text');
+  const streamOptions: any = {};
+  if (requestConfig.PRODUCT_SOURCE) {
+    streamOptions.product_source = requestConfig.PRODUCT_SOURCE;
+  }
+  if (requestConfig.STORE) {
+    streamOptions.store = requestConfig.STORE;
   }
 
-  // Set up Server-Sent Events for streaming
+  const cachedResponse = cacheManager.getBotDojoResponse(sanitizedMessage, { type: 'text' });
+  if (cachedResponse && cachedResponse.response) {
+    const transformed = textService.transformToNewFormat(cachedResponse);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (typeof (res as any).flushHeaders === 'function') (res as any).flushHeaders();
+    res.write(`data: ${JSON.stringify({ type: 'done', response: { text: transformed.text, suggestedQuestions: transformed.suggestedQuestions } })}\n\n`);
+    res.end();
+    return;
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-
-  // Flush headers immediately to start the stream
-  if (typeof (res as any).flushHeaders === 'function') {
-    (res as any).flushHeaders();
-  }
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof (res as any).flushHeaders === 'function') (res as any).flushHeaders();
 
   try {
-    // Stream BotDojo API response to frontend
-    // BotDojo sends tokens via onNewToken events, we extract and forward each token
-    const streamOptions: any = {};
-    if (activeConfig.productSource) {
-      streamOptions.product_source = activeConfig.productSource;
-    }
-    if (activeConfig.store) {
-      streamOptions.store = activeConfig.store;
-    }
-    const botdojoResponse = await service.streamMessage(sanitizedMessage, (token: string) => {
-      // Send token to frontend as SSE immediately
-      // token is already extracted from onNewToken event, just the text
-      const sseData = `data: ${JSON.stringify({ type: 'chunk', data: token })}\n\n`;
-      res.write(sseData);
-
-      // Force flush if available (Node.js streams)
-      if (typeof (res as any).flush === 'function') {
-        (res as any).flush();
-      }
+    const textResponse = await textService.streamMessage(sanitizedMessage, (token: string) => {
+      res.write(`data: ${JSON.stringify({ type: 'chunk', data: token })}\n\n`);
+      if (typeof (res as any).flush === 'function') (res as any).flush();
     }, streamOptions);
 
-    // Transform the final response to extract products and suggested questions
-    const transformedResponse = service.transformToNewFormat(botdojoResponse);
-
-    // Send final response with products and suggested questions
-    res.write(`data: ${JSON.stringify({
-      type: 'done',
-      response: {
-        text: transformedResponse.text,
-        products: transformedResponse.products,
-        suggestedQuestions: transformedResponse.suggestedQuestions
-      }
-    })}\n\n`);
+    const transformed = textService.transformToNewFormat(textResponse);
+    cacheManager.setBotDojoResponse(sanitizedMessage, { response: { text: transformed.text, suggestedQuestions: transformed.suggestedQuestions, products: [] } }, { type: 'text' });
+    res.write(`data: ${JSON.stringify({ type: 'done', response: { text: transformed.text, suggestedQuestions: transformed.suggestedQuestions } })}\n\n`);
     res.end();
   } catch (error) {
-    // Send error to frontend
+    res.write(`data: ${JSON.stringify({ type: 'error', error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`);
+    res.end();
+  }
+}));
+
+// Products stream (BOTDOJO_PRODUCTS_FLOW_ID)
+app.post('/products', asyncHandler(async (req: Request<{}, ChatResponse, ChatRequest>, res: Response) => {
+  const requestId = req.headers['x-request-id'] as string;
+  const { message } = req.body;
+
+  validateString(message, 'message', 1000);
+
+  const sanitizedMessage = sanitizeString(message);
+  logger.chatRequest(sanitizedMessage, { requestId });
+
+  const requestConfig = getBotDojoConfigFromBody(req);
+  const productsService = getBotDojoService(req, requestConfig, 'products');
+  const streamOptions: any = {};
+  if (requestConfig.PRODUCT_SOURCE) {
+    streamOptions.product_source = requestConfig.PRODUCT_SOURCE;
+  }
+  if (requestConfig.STORE) {
+    streamOptions.store = requestConfig.STORE;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof (res as any).flushHeaders === 'function') (res as any).flushHeaders();
+
+  try {
+    const productsResponse = await productsService.sendMessage(sanitizedMessage, streamOptions);
+    const transformed = productsService.transformToNewFormat(productsResponse);
+    const skuArray = transformed.products.map((p) => p.sku);
+    res.write(`data: ${JSON.stringify({ type: 'done', response: { products: skuArray } })}\n\n`);
+    res.end();
+  } catch (error) {
     res.write(`data: ${JSON.stringify({ type: 'error', error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`);
     res.end();
   }
@@ -325,41 +316,28 @@ app.post('/debug-botdojo', asyncHandler(async (req: Request<{}, any, ChatRequest
   const sanitizedMessage = sanitizeString(message);
   logger.info('Debug BotDojo request', { requestId, message: sanitizedMessage });
 
-  // Get BotDojoService instance from request body
   const requestConfig = getBotDojoConfigFromBody(req);
-  const service = getBotDojoService(req, requestConfig);
-  const activeConfig = {
-    apiKey: requestConfig.BOTDOJO_API_KEY,
-    baseUrl: requestConfig.BOTDOJO_BASE_URL,
-    accountId: requestConfig.BOTDOJO_ACCOUNT_ID,
-    projectId: requestConfig.BOTDOJO_PROJECT_ID,
-    flowId: requestConfig.BOTDOJO_FLOW_ID,
-    productSource: requestConfig.PRODUCT_SOURCE,
-    store: requestConfig.STORE,
-  };
-
-  // Call BotDojo API
+  const service = getBotDojoService(req, requestConfig, 'text');
   const sendOptions: any = {};
-  if (activeConfig.productSource) {
-    sendOptions.product_source = activeConfig.productSource;
+  if (requestConfig.PRODUCT_SOURCE) {
+    sendOptions.product_source = requestConfig.PRODUCT_SOURCE;
   }
-  if (activeConfig.store) {
-    sendOptions.store = activeConfig.store;
+  if (requestConfig.STORE) {
+    sendOptions.store = requestConfig.STORE;
   }
   const botdojoResponse = await service.sendMessage(sanitizedMessage, sendOptions);
 
-  // Return the raw response for inspection
   const requestBody: any = { text_input: sanitizedMessage };
-  if (activeConfig.productSource) {
-    requestBody.product_source = activeConfig.productSource;
+  if (requestConfig.PRODUCT_SOURCE) {
+    requestBody.product_source = requestConfig.PRODUCT_SOURCE;
   }
-  if (activeConfig.store) {
-    requestBody.store = activeConfig.store;
+  if (requestConfig.STORE) {
+    requestBody.store = requestConfig.STORE;
   }
   res.json({
     success: true,
     rawResponse: botdojoResponse,
-    endpoint: `${activeConfig.baseUrl}/accounts/${activeConfig.accountId}/projects/${activeConfig.projectId}/flows/${activeConfig.flowId}/run`,
+    endpoint: `${requestConfig.BOTDOJO_BASE_URL}/accounts/${requestConfig.BOTDOJO_ACCOUNT_ID}/projects/${requestConfig.BOTDOJO_PROJECT_ID}/flows/${requestConfig.BOTDOJO_TEXT_FLOW_ID}/run`,
     requestBody: { body: requestBody }
   });
 }));
@@ -375,9 +353,8 @@ app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsRespons
   const sanitizedContext = sanitizeString(context);
   logger.info('Suggestions request', { requestId, context: sanitizedContext, currentSetIndex });
 
-  // Get BotDojoService instance from request body
   const requestConfig = getBotDojoConfigFromBody(req);
-  const service = getBotDojoService(req, requestConfig);
+  const service = getBotDojoService(req, requestConfig, 'text');
 
   // Check cache first
   const cachedSuggestions = cacheManager.getSuggestions(sanitizedContext, currentSetIndex);
@@ -386,7 +363,6 @@ app.post('/suggestions', asyncHandler(async (req: Request<{}, SuggestionsRespons
     return res.json(cachedSuggestions);
   }
 
-  // Call BotDojo API for suggestions
   const sendOptions: any = { requestType: "suggestions" };
   if (requestConfig.PRODUCT_SOURCE) {
     sendOptions.product_source = requestConfig.PRODUCT_SOURCE;

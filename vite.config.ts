@@ -19,7 +19,8 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      "/chat": "http://localhost:3001",
+      "/text-suggQ": "http://localhost:3001",
+      "/products": "http://localhost:3001",
       "/suggestions": "http://localhost:3001",
       "/test-structured": "http://localhost:3001",
       "/debug-botdojo": "http://localhost:3001",

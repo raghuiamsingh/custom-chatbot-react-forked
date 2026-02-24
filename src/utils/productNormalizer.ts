@@ -21,11 +21,40 @@ function stripHtml(html: string): string {
 }
 
 /**
- * Normalizes raw product API response to Product type for display
+ * Minimal Product for SKU-only (e.g. from /products stream)
  */
-export function normalizeProduct(rawProduct: RawProductApiResponse | Partial<RawProductApiResponse> | Product): Product {
+function productFromSku(sku: string): Product {
+  return {
+    sku,
+    name: `Product: ${sku}`,
+    description: '',
+    price: '',
+    ingredients: [],
+    benefits: [],
+    dosage: '',
+    warnings: '',
+    productUrl: `https://uat.gethealthy.store/botdojo/product?sku=${encodeURIComponent(sku)}`,
+    imageUrl: '',
+    category: '',
+    brand: '',
+    servings: '',
+    form: '',
+  };
+}
+
+/**
+ * Normalizes raw product API response to Product type for display.
+ * Accepts: full API object, normalized Product, or a string (SKU only).
+ */
+export function normalizeProduct(rawProduct: RawProductApiResponse | Partial<RawProductApiResponse> | Product | string): Product {
+  if (typeof rawProduct === 'string') {
+    return productFromSku(rawProduct);
+  }
+  if (rawProduct === null || typeof rawProduct !== 'object') {
+    return productFromSku('');
+  }
   // If it's already a normalized Product (has productUrl field), return as-is
-  if ('productUrl' in rawProduct && typeof rawProduct.productUrl === 'string' && rawProduct.productUrl.includes('botdojo/product')) {
+  if ('productUrl' in rawProduct && typeof (rawProduct as Product).productUrl === 'string' && (rawProduct as Product).productUrl.includes('botdojo/product')) {
     return rawProduct as Product;
   }
 
