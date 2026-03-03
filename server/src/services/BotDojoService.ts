@@ -41,7 +41,15 @@ export default class BotDojoService {
 
     const requestBody = {
       options: {
-        stream: 'http'
+        stream: 'http',
+        stream_events: [
+          "onNewToken",
+          "onIntermediateStepUpdate",
+          "onToolStart",
+          "onToolEnd",
+          "onFlowStart",
+          "onFlowEnd"
+        ],
       },
       body: {
         text_input: message,
@@ -87,7 +95,7 @@ export default class BotDojoService {
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           break;
         }
@@ -96,27 +104,28 @@ export default class BotDojoService {
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
         fullResponseText += chunk;
-        
+
         // Try to parse complete JSON objects from the stream (NDJSON format)
         const lines = buffer.split('\n');
-        
+
         // Process all complete lines (except the last one which might be incomplete)
         for (let i = 0; i < lines.length - 1; i++) {
           const line = lines[i].trim();
           if (!line) continue;
-          
+
           try {
             const parsed = JSON.parse(line);
             lastValidJson = parsed;
+            console.log('📥 [BotDojo] received:', parsed);
           } catch (e) {
             // Skip invalid JSON lines
           }
         }
-        
+
         // Keep the last (possibly incomplete) line for the next iteration
         buffer = lines[lines.length - 1];
       }
-      
+
       // Process any remaining text in buffer
       if (buffer.trim()) {
         try {
@@ -132,7 +141,7 @@ export default class BotDojoService {
 
     // Try to parse as JSON
     let botdojoResponse: BotDojoResponse;
-    
+
     if (lastValidJson) {
       botdojoResponse = lastValidJson as BotDojoResponse;
     } else {
@@ -163,7 +172,15 @@ export default class BotDojoService {
 
     const requestBody = {
       options: {
-        stream: 'http'
+        stream: 'http',
+        stream_events: [
+          "onNewToken",
+          "onIntermediateStepUpdate",
+          "onToolStart",
+          "onToolEnd",
+          "onFlowStart",
+          "onFlowEnd"
+        ],
       },
       body: {
         text_input: message,
@@ -212,7 +229,7 @@ export default class BotDojoService {
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           break;
         }
@@ -221,19 +238,19 @@ export default class BotDojoService {
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
         fullResponseText += chunk;
-        
+
         // Parse NDJSON format - each line is a complete JSON object
         const lines = buffer.split('\n');
-        
+
         // Process all complete lines (except the last one which might be incomplete)
         for (let i = 0; i < lines.length - 1; i++) {
           const line = lines[i].trim();
           if (!line) continue;
-          
+
           try {
             const event = JSON.parse(line);
             lastValidJson = event;
-            
+
             // Handle different event types according to BotDojo API docs
             if (event.tag === 'onNewToken') {
               // Extract token from onNewToken event and forward to callback
@@ -248,17 +265,17 @@ export default class BotDojoService {
             // Skip invalid JSON lines
           }
         }
-        
+
         // Keep the last (possibly incomplete) line for the next iteration
         buffer = lines[lines.length - 1];
       }
-      
+
       // Process any remaining text in buffer (final response)
       if (buffer.trim()) {
         try {
           const event = JSON.parse(buffer.trim());
           lastValidJson = event;
-          
+
           // Handle final response or any remaining events
           if (event.tag === 'onNewToken') {
             const token = event.data?.token || '';
@@ -276,7 +293,7 @@ export default class BotDojoService {
 
     // Try to parse as JSON
     let botdojoResponse: BotDojoResponse;
-    
+
     if (lastValidJson) {
       botdojoResponse = lastValidJson as BotDojoResponse;
     } else {
@@ -307,11 +324,11 @@ export default class BotDojoService {
       if (botdojoResponse.response.text && typeof botdojoResponse.response.text === 'string') {
         textContent = botdojoResponse.response.text;
       }
-      
+
       if (Array.isArray(botdojoResponse.response.suggestedQuestions)) {
         suggestedQuestions = botdojoResponse.response.suggestedQuestions;
       }
-      
+
       // Process products from response.products array
       if (Array.isArray(botdojoResponse.response.products)) {
         botdojoResponse.response.products.forEach((product: any) => {
@@ -485,11 +502,11 @@ export default class BotDojoService {
       if (botdojoResponse.response.text && typeof botdojoResponse.response.text === 'string') {
         textContent = botdojoResponse.response.text;
       }
-      
+
       if (Array.isArray(botdojoResponse.response.suggestedQuestions)) {
         suggestedQuestions = botdojoResponse.response.suggestedQuestions;
       }
-      
+
       // Process products from response.products array
       if (Array.isArray(botdojoResponse.response.products)) {
         botdojoResponse.response.products.forEach((product: any) => {
@@ -777,7 +794,7 @@ export default class BotDojoService {
       if (botdojoResponse.response.text && typeof botdojoResponse.response.text === 'string') {
         textContent = botdojoResponse.response.text;
       }
-      
+
       if (Array.isArray(botdojoResponse.response.suggestedQuestions)) {
         suggestedQuestions = botdojoResponse.response.suggestedQuestions;
       }
