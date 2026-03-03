@@ -475,6 +475,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         }
       };
 
+      let hadProductsFromStream = false;
       const readProductsStream = async () => {
         let buffer = "";
         try {
@@ -491,6 +492,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                 const data = JSON.parse(trimmed.substring(6));
                 if (data.type === "done" && data.response) {
                   const products = Array.isArray(data.response.products) ? data.response.products : [];
+                  if (products.length > 0) hadProductsFromStream = true;
                   dispatch({
                     type: "UPDATE_MESSAGE",
                     payload: {
@@ -503,13 +505,6 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                         : {}),
                     },
                   });
-                  if (products.length > 0) {
-                    dispatch({
-                      type: "SET_SIDEBAR_STATE",
-                      payload: { isOpen: true, messageId: botMessageId },
-                    });
-                    window.dispatchEvent(new CustomEvent("chatbotRecommendationsOpened"));
-                  }
                   return;
                 }
                 if (data.type === "error") {
@@ -533,6 +528,15 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       };
 
       await Promise.all([readTextSuggQStream(), readProductsStream()]);
+
+      // Open products drawer only after both text/suggQ and products are done (not while text/suggQ are loading)
+      if (hadProductsFromStream) {
+        dispatch({
+          type: "SET_SIDEBAR_STATE",
+          payload: { isOpen: true, messageId: botMessageId },
+        });
+        window.dispatchEvent(new CustomEvent("chatbotRecommendationsOpened"));
+      }
 
       const elapsedSeconds = Math.round((Date.now() - requestStartTime) / 1000);
       dispatch({
