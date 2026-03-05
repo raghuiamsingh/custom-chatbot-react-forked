@@ -308,32 +308,28 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         "Authorization": `Bearer ${initData.BOTDOJO_API_KEY}`,
       };
 
-      // Start both streams in parallel
-      const [textResponse, productsResponse] = await Promise.all([
-        fetch(buildApiUrl("/text-suggQ", initData.BOTDOJO_API_ENDPOINT), {
-          method: "POST",
-          headers,
-          body,
-          signal: controller.signal,
-        }),
-        fetch(buildApiUrl("/products", initData.BOTDOJO_API_ENDPOINT), {
-          method: "POST",
-          headers,
-          body,
-          signal: controller.signal,
-        }),
-      ]);
+      // Text-suggQ and products run independently (neither waits for the other). Only text-suggQ is required.
+      const textPromise = fetch(buildApiUrl("/text-suggQ", initData.BOTDOJO_API_ENDPOINT), {
+        method: "POST",
+        headers,
+        body,
+        signal: controller.signal,
+      });
+      const productsPromise = fetch(buildApiUrl("/products", initData.BOTDOJO_API_ENDPOINT), {
+        method: "POST",
+        headers,
+        body,
+        signal: controller.signal,
+      });
 
+      // Resolve text first so we can start reading the stream immediately — do not wait for products.
+      const textResponse = await textPromise;
       if (!textResponse.ok) {
         throw new Error("Failed to send message (text)");
       }
-      if (!productsResponse.ok) {
-        throw new Error("Failed to send message (products)");
-      }
 
       const textReader = textResponse.body?.getReader();
-      const productsReader = productsResponse.body?.getReader();
-      if (!textReader || !productsReader) {
+      if (!textReader) {
         throw new Error("Response body is not readable");
       }
 
@@ -398,8 +394,28 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
               if (!trimmed.startsWith("data: ")) continue;
               try {
                 const data = JSON.parse(trimmed.substring(6));
-                if (data.type === "chunk") {
-                  const token = typeof data.data === "string" ? data.data : "";
+                if (data.type === "chunk" && data.response) {
+                  const { text: chunkText, suggestedQuestions: chunkSuggQ } = data.response;
+                  if (typeof chunkText === "string" && chunkText !== currentTextValue) {
+                    currentTextValue = chunkText;
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: { id: botMessageId, content: { text: chunkText } },
+                    });
+                  }
+                  if (Array.isArray(chunkSuggQ) && chunkSuggQ.length > 0) {
+                    dispatch({
+                      type: "UPDATE_MESSAGE",
+                      payload: {
+                        id: botMessageId,
+                        suggestedQuestions: chunkSuggQ,
+                        isLoadingSuggestions: false,
+                      },
+                    });
+                  }
+                } else if (data.type === "chunk" && typeof data.data === "string") {
+                  // Fallback: raw token stream (legacy)
+                  const token = data.data;
                   if (token) {
                     accumulatedRawText += token;
                     const trimmedAcc = accumulatedRawText.trim();
@@ -476,7 +492,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       };
 
       let hadProductsFromStream = false;
-      const readProductsStream = async () => {
+      const readProductsStream = async (productsReader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> => {
         let buffer = "";
         try {
           while (true) {
@@ -522,14 +538,41 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
             type: "UPDATE_MESSAGE",
             payload: { id: botMessageId, isLoadingProducts: false },
           });
+        } catch (err) {
+          console.error("Products stream error:", err);
+          dispatch({
+            type: "UPDATE_MESSAGE",
+            payload: { id: botMessageId, isLoadingProducts: false },
+          });
         } finally {
           productsReader.releaseLock();
         }
       };
 
-      await Promise.all([readTextSuggQStream(), readProductsStream()]);
+      // Start text stream immediately so chunks and "done" render without waiting for products.
+      const textStreamPromise = readTextSuggQStream();
+      const productsFlowPromise = (async () => {
+        let productsReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+        try {
+          const productsResponse = await productsPromise;
+          if (productsResponse.ok && productsResponse.body) {
+            productsReader = productsResponse.body.getReader();
+          }
+        } catch (_) {
+          // Do not throw on products failure — text and suggestedQuestions must always show
+        }
+        if (!productsReader) {
+          dispatch({
+            type: "UPDATE_MESSAGE",
+            payload: { id: botMessageId, isLoadingProducts: false },
+          });
+          return;
+        }
+        await readProductsStream(productsReader);
+      })();
+      await Promise.all([textStreamPromise, productsFlowPromise]);
 
-      // Open products drawer only after both text/suggQ and products are done (not while text/suggQ are loading)
+      // Open products drawer only when we got products; UI shows products block only after text/suggQ are rendered (see MessageRenderer).
       if (hadProductsFromStream) {
         dispatch({
           type: "SET_SIDEBAR_STATE",

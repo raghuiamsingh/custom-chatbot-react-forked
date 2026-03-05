@@ -252,8 +252,8 @@ app.post('/text-suggQ', asyncHandler(async (req: Request<{}, ChatResponse, ChatR
   if (typeof (res as any).flushHeaders === 'function') (res as any).flushHeaders();
 
   try {
-    const textResponse = await textService.streamMessage(sanitizedMessage, (token: string) => {
-      res.write(`data: ${JSON.stringify({ type: 'chunk', data: token })}\n\n`);
+    const textResponse = await textService.streamMessage(sanitizedMessage, (data: { text: string; suggestedQuestions: string[] }) => {
+      res.write(`data: ${JSON.stringify({ type: 'chunk', response: { text: data.text, suggestedQuestions: data.suggestedQuestions } })}\n\n`);
       if (typeof (res as any).flush === 'function') (res as any).flush();
     }, streamOptions);
 

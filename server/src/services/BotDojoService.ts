@@ -2,6 +2,9 @@ import { normalizeImageUrl, isLikelyImage } from '../utils/mediaUtils';
 import { parseCanvasDataForStructuredContent, cleanTextContent } from '../utils/canvasParser';
 import { BotDojoResponse, ChatMessage, StructuredContentItem, Product } from '../types';
 
+/** Separator between text and suggestedQuestions in text/suggQ API response stream */
+const TEXT_SUGGQ_SEPARATOR = '====================================';
+
 export interface BotDojoConfig {
   baseUrl: string;
   apiKey: string;
@@ -44,11 +47,8 @@ export default class BotDojoService {
         stream: 'http',
         stream_events: [
           "onNewToken",
-          "onIntermediateStepUpdate",
           "onToolStart",
           "onToolEnd",
-          "onFlowStart",
-          "onFlowEnd"
         ],
       },
       body: {
@@ -157,15 +157,34 @@ export default class BotDojoService {
   }
 
   /**
-   * Stream BotDojo response with callback for each chunk
-   * @param message - User message
-   * @param onChunk - Callback function called for each chunk received
-   * @param options - Additional options
-   * @returns Promise that resolves with the final response
+   * Parse accumulated text/suggQ stream content by separator into text and suggestedQuestions array.
+   * Format: "text\n\n====================================\n\nsuggestedQuestions" (suggestedQuestions can be newline- or numbered-list).
+   */
+  private parseTextAndSuggestedQuestions(accumulated: string): { text: string; suggestedQuestions: string[] } {
+    const idx = accumulated.indexOf(TEXT_SUGGQ_SEPARATOR);
+    let text = accumulated.trim();
+    let suggestedQuestions: string[] = [];
+    if (idx !== -1) {
+      text = accumulated.slice(0, idx).trim();
+      const suggQBlock = accumulated.slice(idx + TEXT_SUGGQ_SEPARATOR.length).trim();
+      if (suggQBlock) {
+        suggestedQuestions = suggQBlock
+          .split(/\n+/)
+          .map((line) => line.replace(/^\s*\d+\.\s*/, '').trim())
+          .filter((line) => line.length > 0);
+      }
+    }
+    return { text, suggestedQuestions };
+  }
+
+  /**
+   * Stream BotDojo response with callback for each chunk.
+   * API stream format: text, then "====================================", then suggestedQuestions.
+   * onChunk receives { text, suggestedQuestions } so the server can stream JSON in that shape to the frontend.
    */
   async streamMessage(
     message: string,
-    onChunk: (chunk: string) => void,
+    onChunk: (data: { text: string; suggestedQuestions: string[] }) => void,
     options: any = {}
   ): Promise<BotDojoResponse> {
     const endpoint = `${this.baseUrl}/accounts/${this.accountId}/projects/${this.projectId}/flows/${this.flowId}/run`;
@@ -175,11 +194,8 @@ export default class BotDojoService {
         stream: 'http',
         stream_events: [
           "onNewToken",
-          "onIntermediateStepUpdate",
           "onToolStart",
           "onToolEnd",
-          "onFlowStart",
-          "onFlowEnd"
         ],
       },
       body: {
@@ -188,15 +204,8 @@ export default class BotDojoService {
       }
     };
 
-    // Trim API key to remove any whitespace
     const trimmedApiKey = this.apiKey?.trim() || this.apiKey;
-
-    // BotDojo API authentication - according to docs, use Authorization header without Bearer prefix
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-
-    // BotDojo requires API key in Authorization header (no Bearer prefix)
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (trimmedApiKey) {
       headers['Authorization'] = trimmedApiKey;
     }
@@ -212,15 +221,13 @@ export default class BotDojoService {
       throw new Error(`BotDojo API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    // Handle streaming response - read as stream and parse NDJSON format
-    // BotDojo sends NDJSON: each line is a complete JSON object
-    // Events have format: {"tag":"onNewToken","data":{"token":"..."}}
-    // Final response has no tag: {"status":"complete","response":{...}}
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    let fullResponseText = '';
-    let lastValidJson: any = null;
+    /** Accumulated content: from NDJSON tokens or, if none, from raw stream */
+    let contentAccumulator = '';
+    /** Raw decoded stream (used when API sends plain text instead of NDJSON) */
+    let rawStream = '';
 
     if (!reader) {
       throw new Error('Response body is not readable');
@@ -229,83 +236,68 @@ export default class BotDojoService {
     try {
       while (true) {
         const { done, value } = await reader.read();
+        if (done) break;
 
-        if (done) {
-          break;
-        }
-
-        // Decode the chunk
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
-        fullResponseText += chunk;
+        rawStream += chunk;
 
-        // Parse NDJSON format - each line is a complete JSON object
         const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
 
-        // Process all complete lines (except the last one which might be incomplete)
-        for (let i = 0; i < lines.length - 1; i++) {
+        for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
 
           try {
             const event = JSON.parse(line);
-            lastValidJson = event;
-
-            // Handle different event types according to BotDojo API docs
             if (event.tag === 'onNewToken') {
-              // Extract token from onNewToken event and forward to callback
-              const token = event.data?.token || '';
+              const token = event.data?.token ?? '';
               if (token) {
-                onChunk(token);
+                contentAccumulator += token;
+                const parsed = this.parseTextAndSuggestedQuestions(contentAccumulator);
+                onChunk({ text: parsed.text, suggestedQuestions: parsed.suggestedQuestions });
               }
             }
-            // Other events (onLog, onIntermediateStepUpdate, etc.) are ignored
-            // Final response (no tag) will be returned at the end
-          } catch (e) {
-            // Skip invalid JSON lines
+          } catch {
+            // Not valid JSON: treat stream as raw text and accumulate by line
+            contentAccumulator += (contentAccumulator ? '\n' : '') + line;
+            const parsed = this.parseTextAndSuggestedQuestions(contentAccumulator);
+            onChunk({ text: parsed.text, suggestedQuestions: parsed.suggestedQuestions });
           }
         }
-
-        // Keep the last (possibly incomplete) line for the next iteration
-        buffer = lines[lines.length - 1];
       }
 
-      // Process any remaining text in buffer (final response)
       if (buffer.trim()) {
         try {
           const event = JSON.parse(buffer.trim());
-          lastValidJson = event;
-
-          // Handle final response or any remaining events
           if (event.tag === 'onNewToken') {
-            const token = event.data?.token || '';
+            const token = event.data?.token ?? '';
             if (token) {
-              onChunk(token);
+              contentAccumulator += token;
+              const parsed = this.parseTextAndSuggestedQuestions(contentAccumulator);
+              onChunk({ text: parsed.text, suggestedQuestions: parsed.suggestedQuestions });
             }
           }
-        } catch (e) {
-          // If buffer doesn't parse, it might be incomplete - that's okay
+        } catch {
+          contentAccumulator += (contentAccumulator ? '\n' : '') + buffer;
+          const parsed = this.parseTextAndSuggestedQuestions(contentAccumulator);
+          onChunk({ text: parsed.text, suggestedQuestions: parsed.suggestedQuestions });
         }
+      }
+
+      // If no content was accumulated from NDJSON tokens, use raw stream (plain text API format)
+      if (!contentAccumulator && rawStream.trim()) {
+        contentAccumulator = rawStream.trim();
+        const parsed = this.parseTextAndSuggestedQuestions(contentAccumulator);
+        onChunk({ text: parsed.text, suggestedQuestions: parsed.suggestedQuestions });
       }
     } finally {
       reader.releaseLock();
     }
 
-    // Try to parse as JSON
-    let botdojoResponse: BotDojoResponse;
-
-    if (lastValidJson) {
-      botdojoResponse = lastValidJson as BotDojoResponse;
-    } else {
-      // Fallback: try parsing the entire response text as a single JSON object
-      try {
-        botdojoResponse = JSON.parse(fullResponseText.trim()) as BotDojoResponse;
-      } catch (parseError) {
-        throw new Error(`Failed to parse BotDojo response as JSON. Raw response (first 500 chars): ${fullResponseText.substring(0, 500)}`);
-      }
-    }
-
-    return botdojoResponse;
+    const { text, suggestedQuestions } = this.parseTextAndSuggestedQuestions(contentAccumulator);
+    return { response: { text, suggestedQuestions, products: [] } };
   }
 
   /**

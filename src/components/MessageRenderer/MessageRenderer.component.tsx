@@ -62,12 +62,15 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   }
 
   // Bot messages: professional content blocks
-  // Extract plain text when content is the raw JSON object (text + suggestedQuestions + products)
+  // Text and suggestedQuestions are rendered immediately from message state; they do not wait on products API.
   const displayText = parseStreamedText(message.content.text || "");
 
-  // Only show products section after text or suggested questions have been received
+  // Never show the products block until we have rendered/fetched text & suggestedQuestions (even if products are already loaded).
   const hasTextOrSuggQ =
-    displayText.length > 0 || message.isLoadingSuggestions === false;
+    displayText.length > 0 ||
+    (Array.isArray(message.suggestedQuestions) && message.suggestedQuestions.length > 0);
+  const textOrSuggQDone = !isTextStreaming && message.isLoadingSuggestions === false;
+  const showProductsSection = hasTextOrSuggQ && textOrSuggQDone;
 
   return (
     <div>
@@ -89,8 +92,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
             </div>
 
 
-            {/* Products: only visible after text/suggQ received; show loading or loaded content */}
-            {hasTextOrSuggQ && (
+            {/* Products: shown only after text & suggestedQuestions are rendered; may show loading skeleton or loaded products */}
+            {showProductsSection && (
               <>
                 {message.isLoadingProducts && (
                   <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 animate-pulse">
