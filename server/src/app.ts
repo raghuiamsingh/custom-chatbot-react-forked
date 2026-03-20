@@ -138,10 +138,6 @@ function getBotDojoConfigFromBody(req: Request): {
     throw new Error('BotDojo configuration is incomplete. Please provide all required BotDojo credentials (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_TEXT_FLOW_ID, BOTDOJO_PRODUCTS_FLOW_ID).');
   }
 
-  if (!config.SOURCE_APP_TYPE || typeof config.SOURCE_APP_TYPE !== 'string' || config.SOURCE_APP_TYPE.trim() === '') {
-    throw new Error('SOURCE_APP_TYPE is required in initData and must be a non-empty string.');
-  }
-
   return {
     BOTDOJO_API_KEY: config.BOTDOJO_API_KEY,
     BOTDOJO_BASE_URL: config.BOTDOJO_BASE_URL,
@@ -698,14 +694,6 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
     });
   }
 
-  if (!sourceAppType || typeof sourceAppType !== 'string' || sourceAppType.trim() === '') {
-    logger.warn('SOURCE_APP_TYPE not found or invalid in initData', { requestId });
-    return res.json({
-      success: false,
-      error: 'SOURCE_APP_TYPE is required in initData'
-    });
-  }
-
   // Fetch product info for each SKU
   const productInfoPromises = products.map(async (sku: string) => {
     try {
@@ -760,18 +748,21 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
       - (as it is, no change)
   */
   let successfulProducts = null;
-  if (sourceAppType === 'cux') {
-    if (product_source === 'catalog' || product_source === 'lab_tests') {
-      successfulProducts = productResults.filter(result => !result.error && !(result.data as { hide_on_curation?: boolean }).hide_on_curation);
-    }
-    else {
+  switch (sourceAppType) {
+    case 'cux':
+      if (product_source === 'catalog' || product_source === 'lab_tests') {
+        successfulProducts = productResults.filter(result => !result.error && !(result.data as { hide_on_curation?: boolean }).hide_on_curation);
+      } else {
+        successfulProducts = productResults.filter(result => !result.error);
+      }
+      break;
+    case 'dispensary':
       successfulProducts = productResults.filter(result => !result.error);
-    }
+      break;
+    default:
+      successfulProducts = productResults.filter(result => !result.error);
+      break;
   }
-  else {
-    successfulProducts = productResults.filter(result => !result.error);
-  }
-
 
   if (failedProducts.length > 0) {
     logger.warn('Some products failed to fetch', {
