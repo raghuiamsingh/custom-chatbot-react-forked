@@ -108,6 +108,7 @@ export interface ChatRequest {
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_TEXT_FLOW_ID: string;
     BOTDOJO_PRODUCTS_FLOW_ID: string;
+    SOURCE_APP_TYPE: string;
     PRODUCT_SOURCE?: string;
     STORE?: string;
   };
@@ -123,6 +124,7 @@ export interface SuggestionsRequest {
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_TEXT_FLOW_ID: string;
     BOTDOJO_PRODUCTS_FLOW_ID: string;
+    SOURCE_APP_TYPE: string;
     PRODUCT_SOURCE?: string;
     STORE?: string;
   };
@@ -137,6 +139,7 @@ export interface TestStructuredRequest {
     BOTDOJO_PROJECT_ID: string;
     BOTDOJO_TEXT_FLOW_ID: string;
     BOTDOJO_PRODUCTS_FLOW_ID: string;
+    SOURCE_APP_TYPE: string;
     PRODUCT_SOURCE?: string;
     STORE?: string;
   };
@@ -164,6 +167,7 @@ export interface SuggestionsResponse {
 
 export interface ProductInfoRequest {
   products: string[];
+  product_source: string;
   initData?: string | {
     BOTDOJO_API_KEY: string;
     BOTDOJO_BASE_URL: string;
@@ -174,6 +178,7 @@ export interface ProductInfoRequest {
     SOURCE_API_BASE_URL: string; // Mandatory
     SOURCE_PRACTICE_TOKEN?: string; // Optional
     SOURCE_AUTH_TOKEN: string; // Mandatory
+    SOURCE_APP_TYPE: string;
   };
 }
 

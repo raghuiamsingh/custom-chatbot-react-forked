@@ -13,6 +13,7 @@ export interface InitData {
   SOURCE_API_BASE_URL: string;
   SOURCE_PRACTICE_TOKEN?: string; // Token for authenticating with the source API (optional)
   SOURCE_AUTH_TOKEN: string; // Additional authentication token for the source API
+  SOURCE_APP_TYPE: string; // Host / embedding application type for the source API
   PRODUCT_SOURCE?: string; // Product source identifier for BotDojo API
   STORE?: string; // Store identifier for BotDojo API
 }
@@ -45,6 +46,10 @@ export const Chatbot: FC<ChatbotProps> = ({
   // Validate mandatory SOURCE_AUTH_TOKEN
   if (!initData.SOURCE_AUTH_TOKEN || typeof initData.SOURCE_AUTH_TOKEN !== 'string' || initData.SOURCE_AUTH_TOKEN.trim() === '') {
     throw new Error('SOURCE_AUTH_TOKEN is required and must be a non-empty string in initData');
+  }
+
+  if (!initData.SOURCE_APP_TYPE || typeof initData.SOURCE_APP_TYPE !== 'string' || initData.SOURCE_APP_TYPE.trim() === '') {
+    throw new Error('SOURCE_APP_TYPE is required and must be a non-empty string in initData');
   }
 
   return (

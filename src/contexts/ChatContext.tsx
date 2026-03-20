@@ -160,24 +160,24 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
   useEffect(() => {
     const isSidebarOpen = state.sidebarState.isOpen;
     const wasSidebarClosed = !prevSidebarOpenRef.current;
-    
+
     // Only call API when sidebar transitions from closed to open
     if (isSidebarOpen && wasSidebarClosed && state.sidebarState.messageId) {
       const message = state.messages.find((msg) => msg.id === state.sidebarState.messageId);
-      
+
       // Extract SKUs from the message if it has structured product data
       if (message?.structured?.type === 'product' && message.structured.data) {
         const products = message.structured.data
           .map((item: any) => (typeof item === 'string' ? item : item?.sku))
           .filter((sku: string | undefined): sku is string => Boolean(sku));
-        
+
         if (products.length > 0) {
           // Set loading state
           dispatch({
             type: "SET_SIDEBAR_STATE",
-            payload: { 
-              ...state.sidebarState, 
-              isLoadingProductInfo: true 
+            payload: {
+              ...state.sidebarState,
+              isLoadingProductInfo: true
             },
           });
 
@@ -196,7 +196,8 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                 body: JSON.stringify({
                   // TODO: this is a temporary fix for BotDojo's issue, to ensure the products are formatted correctly for the API
                   products: products.map((item) => item.split(" ").join("-")),
-                  initData: encryptedInitData
+                  initData: encryptedInitData,
+                  product_source: initData.PRODUCT_SOURCE ?? '',
                 }),
               });
 
@@ -205,11 +206,11 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
               }
 
               const data = await response.json();
-              
+
               if (data.success && data.products && Array.isArray(data.products)) {
                 // Normalize the product data from API
                 const normalizedProducts = normalizeProducts(data.products);
-                
+
                 // Update the message with enriched product data
                 dispatch({
                   type: "UPDATE_MESSAGE",
@@ -229,9 +230,9 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
               // Clear loading state
               dispatch({
                 type: "SET_SIDEBAR_STATE",
-                payload: { 
-                  ...state.sidebarState, 
-                  isLoadingProductInfo: false 
+                payload: {
+                  ...state.sidebarState,
+                  isLoadingProductInfo: false
                 },
               });
             }
@@ -239,7 +240,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         }
       }
     }
-    
+
     // Update ref for next render
     prevSidebarOpenRef.current = isSidebarOpen;
   }, [state.sidebarState.isOpen, state.sidebarState.messageId, state.messages, initData]);
@@ -516,8 +517,8 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                       isLoadingProducts: false,
                       ...(products.length > 0
                         ? {
-                            structured: { type: "product" as const, data: products },
-                          }
+                          structured: { type: "product" as const, data: products },
+                        }
                         : {}),
                     },
                   });

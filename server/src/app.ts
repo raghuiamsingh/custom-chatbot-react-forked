@@ -138,6 +138,10 @@ function getBotDojoConfigFromBody(req: Request): {
     throw new Error('BotDojo configuration is incomplete. Please provide all required BotDojo credentials (BOTDOJO_API_KEY, BOTDOJO_BASE_URL, BOTDOJO_ACCOUNT_ID, BOTDOJO_PROJECT_ID, BOTDOJO_TEXT_FLOW_ID, BOTDOJO_PRODUCTS_FLOW_ID).');
   }
 
+  if (!config.SOURCE_APP_TYPE || typeof config.SOURCE_APP_TYPE !== 'string' || config.SOURCE_APP_TYPE.trim() === '') {
+    throw new Error('SOURCE_APP_TYPE is required in initData and must be a non-empty string.');
+  }
+
   return {
     BOTDOJO_API_KEY: config.BOTDOJO_API_KEY,
     BOTDOJO_BASE_URL: config.BOTDOJO_BASE_URL,
@@ -615,7 +619,7 @@ app.post('/test-structured', asyncHandler(async (req: Request<{}, { messages: Me
 // Product info endpoint
 app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoResponse, ProductInfoRequest>, res: Response<ProductInfoResponse>) => {
   const requestId = req.headers['x-request-id'] as string;
-  const { products } = req.body;
+  const { products, product_source } = req.body;
 
   // Input validation
   if (!Array.isArray(products)) {
@@ -638,10 +642,12 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
     products
   });
 
-  // Get SOURCE_API_BASE_URL, SOURCE_PRACTICE_TOKEN, and SOURCE_AUTH_TOKEN from initData
+  // Get SOURCE_API_BASE_URL, SOURCE_PRACTICE_TOKEN, SOURCE_AUTH_TOKEN, and SOURCE_APP_TYPE from initData
   let sourceApiBaseUrl: string | undefined;
   let practiceToken: string | undefined;
   let sourceAuthToken: string | undefined;
+  let sourceAppType: string | undefined;
+
   try {
     const body = req.body as any;
     const configData = body?.initData;
@@ -669,6 +675,7 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
         sourceApiBaseUrl = config.SOURCE_API_BASE_URL;
         practiceToken = config.SOURCE_PRACTICE_TOKEN;
         sourceAuthToken = config.SOURCE_AUTH_TOKEN;
+        sourceAppType = config.SOURCE_APP_TYPE;
       }
     }
   } catch (error) {
@@ -691,6 +698,14 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
     });
   }
 
+  if (!sourceAppType || typeof sourceAppType !== 'string' || sourceAppType.trim() === '') {
+    logger.warn('SOURCE_APP_TYPE not found or invalid in initData', { requestId });
+    return res.json({
+      success: false,
+      error: 'SOURCE_APP_TYPE is required in initData'
+    });
+  }
+
   // Fetch product info for each SKU
   const productInfoPromises = products.map(async (sku: string) => {
     try {
@@ -699,12 +714,12 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${sourceAuthToken}`,
       };
-      
+
       // Only include Practice-Token header if practiceToken is provided
       if (practiceToken) {
         headers['Practice-Token'] = practiceToken;
       }
-      
+
       const response = await fetch(productUrl, {
         method: 'GET',
         headers,
@@ -734,8 +749,29 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
   });
 
   const productResults = await Promise.all(productInfoPromises);
-  const successfulProducts = productResults.filter(result => !result.error);
   const failedProducts = productResults.filter(result => result.error);
+
+  /**
+    cux:
+      - catalog:  don't show hideOnCuration products
+      - lab_tests:  don't show hideOnCuration products
+      - recommendation:  (as it is, no change)
+    dispensary:
+      - (as it is, no change)
+  */
+  let successfulProducts = null;
+  if (sourceAppType === 'cux') {
+    if (product_source === 'catalog' || product_source === 'lab_tests') {
+      successfulProducts = productResults.filter(result => !result.error && !(result.data as { hide_on_curation?: boolean }).hide_on_curation);
+    }
+    else {
+      successfulProducts = productResults.filter(result => !result.error);
+    }
+  }
+  else {
+    successfulProducts = productResults.filter(result => !result.error);
+  }
+
 
   if (failedProducts.length > 0) {
     logger.warn('Some products failed to fetch', {
@@ -746,13 +782,13 @@ app.post('/product-info', asyncHandler(async (req: Request<{}, ProductInfoRespon
 
   res.json({
     success: true,
-    products: successfulProducts.map(p => {
+    products: successfulProducts ? successfulProducts.map(p => {
       const product = { sku: p.sku };
       if (p.data && typeof p.data === 'object') {
         return { ...product, ...(p.data as Record<string, any>) };
       }
       return product;
-    })
+    }) : []
   });
 }));
 
