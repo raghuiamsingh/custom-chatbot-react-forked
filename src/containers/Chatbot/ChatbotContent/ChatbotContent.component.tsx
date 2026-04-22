@@ -235,8 +235,6 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
               isLoading={state.isLoading}
               requestStartTime={state.requestStartTime}
               onScrollChange={handleScrollChange}
-              isLoadingProductInfo={state.sidebarState.isLoadingProductInfo}
-              productInfoMessageId={state.sidebarState.messageId}
             />
 
             {/* Suggested Questions Action and Input Bar Container */}
