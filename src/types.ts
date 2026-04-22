@@ -10,6 +10,12 @@ export type Message = {
   }; // Optional structured content for sidebar with content type
   isLoadingProducts?: boolean; // Loading state for products
   isLoadingSuggestions?: boolean; // Loading state for suggested questions
+  /** True while POST /product-info is in flight for this message */
+  isLoadingProductInfo?: boolean;
+  /** Set true after /product-info completes (success or failure) so the heading can render */
+  productInfoResolved?: boolean;
+  /** Count from API response `products` array when /product-info succeeds */
+  productInfoCount?: number;
   responseTimeSeconds?: number; // Time from request start to stream completion
 };
 
@@ -104,5 +110,4 @@ export type SidebarContent = {
 export type SidebarState = {
   isOpen: boolean;
   messageId: string | null;
-  isLoadingProductInfo?: boolean;
 };

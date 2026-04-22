@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ChatWindow, InputBar, Sidebar, StructuredContentTester, SuggestedQuestionsAction, ThemeToggle, type ChatWindowRef } from "@components";
 import { useChat } from "@contexts";
 
@@ -48,6 +48,17 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
     getSuggestionsContext,
     dispatch,
   } = useChat();
+
+  const sidebarProductInfoLoading = useMemo(() => {
+    const mid = state.sidebarState.messageId;
+    if (!state.sidebarState.isOpen || !mid) return false;
+    const sidebarMessage = state.messages.find((m) => m.id === mid);
+    return Boolean(
+      sidebarMessage?.structured?.type === "product" &&
+        (sidebarMessage.structured.data?.length ?? 0) > 0 &&
+        sidebarMessage.productInfoResolved !== true,
+    );
+  }, [state.sidebarState.isOpen, state.sidebarState.messageId, state.messages]);
 
   // Reset sidebar width when it closes
   useEffect(() => {
@@ -298,7 +309,7 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
             messageId={state.sidebarState.messageId}
             messages={state.messages}
             zIndex={sidebarZIndex}
-            isLoadingProductInfo={state.sidebarState.isLoadingProductInfo}
+            isLoadingProductInfo={sidebarProductInfoLoading}
             width={sidebarWidth}
             onResizeStart={handleMouseDown}
             minWidth={sidebarMinWidth}

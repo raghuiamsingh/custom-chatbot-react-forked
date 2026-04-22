@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from "react";
+import React, { createContext, useContext, useReducer, useEffect, useCallback, type ReactNode } from "react";
 import type { Message, SidebarState, ChatResponse, Product } from "@types";
 import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
@@ -43,7 +43,7 @@ const initialState: ChatState = {
   isLoading: false,
   isLoadingSuggestions: false,
   showInitialSuggestions: true,
-  sidebarState: { isOpen: false, messageId: null, isLoadingProductInfo: false },
+  sidebarState: { isOpen: false, messageId: null },
   showContentTester: false,
   debugMode: true,
   abortController: null,
@@ -121,6 +121,12 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
   }
 }
 
+function extractProductSkus(data: unknown[]): string[] {
+  return data
+    .map((item: unknown) => (typeof item === "string" ? item : (item as { sku?: string })?.sku))
+    .filter((sku): sku is string => Boolean(sku));
+}
+
 // Context
 interface ChatContextType {
   state: ChatState;
@@ -156,94 +162,108 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
   // Helper function to generate unique IDs
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
-  // Call product-info API when sidebar opens
+  const productInfoInFlightRef = React.useRef(new Set<string>());
+
+  const fetchProductInfoForMessage = useCallback(
+    async (messageId: string, productSkus: string[]) => {
+      if (productSkus.length === 0) return;
+      if (productInfoInFlightRef.current.has(messageId)) return;
+      productInfoInFlightRef.current.add(messageId);
+
+      dispatch({
+        type: "UPDATE_MESSAGE",
+        payload: {
+          id: messageId,
+          isLoadingProductInfo: true,
+          productInfoResolved: false,
+          productInfoCount: undefined,
+        },
+      });
+
+      try {
+        const encryptedInitData = await encryptInitData(initData);
+
+        const response = await fetch(buildApiUrl("/product-info", initData.BOTDOJO_API_ENDPOINT), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${initData.BOTDOJO_API_KEY}`,
+          },
+          body: JSON.stringify({
+            // TODO: temporary fix for BotDojo — ensure SKUs are formatted correctly for the API
+            products: productSkus.map((item) => item.split(" ").join("-")),
+            initData: encryptedInitData,
+            product_source: initData.PRODUCT_SOURCE ?? "",
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch product info: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.products && Array.isArray(data.products)) {
+          const normalizedProducts = normalizeProducts(data.products);
+          const apiCount = data.products.length;
+          dispatch({
+            type: "UPDATE_MESSAGE",
+            payload: {
+              id: messageId,
+              structured: { type: "product" as const, data: normalizedProducts },
+              isLoadingProductInfo: false,
+              productInfoResolved: true,
+              productInfoCount: apiCount,
+            },
+          });
+        } else {
+          dispatch({
+            type: "UPDATE_MESSAGE",
+            payload: {
+              id: messageId,
+              isLoadingProductInfo: false,
+              productInfoResolved: true,
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Failed to call product-info API:", error);
+        dispatch({
+          type: "UPDATE_MESSAGE",
+          payload: {
+            id: messageId,
+            isLoadingProductInfo: false,
+            productInfoResolved: true,
+          },
+        });
+      } finally {
+        productInfoInFlightRef.current.delete(messageId);
+      }
+    },
+    [initData],
+  );
+
+  // Call product-info when sidebar opens if this message is not already enriched
   useEffect(() => {
     const isSidebarOpen = state.sidebarState.isOpen;
     const wasSidebarClosed = !prevSidebarOpenRef.current;
 
-    // Only call API when sidebar transitions from closed to open
     if (isSidebarOpen && wasSidebarClosed && state.sidebarState.messageId) {
       const message = state.messages.find((msg) => msg.id === state.sidebarState.messageId);
-
-      // Extract SKUs from the message if it has structured product data
-      if (message?.structured?.type === 'product' && message.structured.data) {
-        const products = message.structured.data
-          .map((item: any) => (typeof item === 'string' ? item : item?.sku))
-          .filter((sku: string | undefined): sku is string => Boolean(sku));
-
-        if (products.length > 0) {
-          // Set loading state
-          dispatch({
-            type: "SET_SIDEBAR_STATE",
-            payload: {
-              ...state.sidebarState,
-              isLoadingProductInfo: true
-            },
-          });
-
-          // Call the product-info API
-          (async () => {
-            try {
-              // Encrypt initData before sending
-              const encryptedInitData = await encryptInitData(initData);
-
-              const response = await fetch(buildApiUrl("/product-info", initData.BOTDOJO_API_ENDPOINT), {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${initData.BOTDOJO_API_KEY}`
-                },
-                body: JSON.stringify({
-                  // TODO: this is a temporary fix for BotDojo's issue, to ensure the products are formatted correctly for the API
-                  products: products.map((item) => item.split(" ").join("-")),
-                  initData: encryptedInitData,
-                  product_source: initData.PRODUCT_SOURCE ?? '',
-                }),
-              });
-
-              if (!response.ok) {
-                throw new Error(`Failed to fetch product info: ${response.status}`);
-              }
-
-              const data = await response.json();
-
-              if (data.success && data.products && Array.isArray(data.products)) {
-                // Normalize the product data from API
-                const normalizedProducts = normalizeProducts(data.products);
-
-                // Update the message with enriched product data
-                dispatch({
-                  type: "UPDATE_MESSAGE",
-                  payload: {
-                    id: state.sidebarState.messageId!,
-                    structured: {
-                      type: 'product',
-                      data: normalizedProducts
-                    }
-                  }
-                });
-              }
-            } catch (error) {
-              // Log error but don't block the UI
-              console.error("Failed to call product-info API:", error);
-            } finally {
-              // Clear loading state
-              dispatch({
-                type: "SET_SIDEBAR_STATE",
-                payload: {
-                  ...state.sidebarState,
-                  isLoadingProductInfo: false
-                },
-              });
-            }
-          })();
+      if (
+        message?.structured?.type === "product" &&
+        message.structured.data?.length &&
+        message.productInfoResolved !== true
+      ) {
+        const productSkus = extractProductSkus(message.structured.data);
+        if (productSkus.length > 0) {
+          void fetchProductInfoForMessage(state.sidebarState.messageId, productSkus);
         }
       }
     }
 
-    // Update ref for next render
     prevSidebarOpenRef.current = isSidebarOpen;
-  }, [state.sidebarState.isOpen, state.sidebarState.messageId, state.messages, initData]);
+  }, [state.sidebarState.isOpen, state.sidebarState.messageId, state.messages, fetchProductInfoForMessage]);
 
   // Send message function
   const sendMessage = async (content: string) => {
@@ -251,7 +271,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
     if (state.sidebarState.isOpen) {
       dispatch({
         type: "SET_SIDEBAR_STATE",
-        payload: { isOpen: false, messageId: null, isLoadingProductInfo: false },
+        payload: { isOpen: false, messageId: null },
       });
       window.dispatchEvent(new CustomEvent('chatbotRecommendationsClosed'));
     }
@@ -522,6 +542,12 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                         : {}),
                     },
                   });
+                  if (products.length > 0) {
+                    const skus = extractProductSkus(products);
+                    if (skus.length > 0) {
+                      void fetchProductInfoForMessage(botMessageId, skus);
+                    }
+                  }
                   return;
                 }
                 if (data.type === "error") {
@@ -651,7 +677,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
   const handleCloseSidebar = () => {
     dispatch({
       type: "SET_SIDEBAR_STATE",
-      payload: { isOpen: false, messageId: null, isLoadingProductInfo: false },
+      payload: { isOpen: false, messageId: null },
     });
     // Dispatch custom event when sidebar is closed
     window.dispatchEvent(new CustomEvent('chatbotRecommendationsClosed'));
@@ -683,13 +709,23 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       const data = await response.json();
 
       if (data.messages && Array.isArray(data.messages)) {
-        const testMessages: Message[] = data.messages.map((msg: any) => ({
-          id: msg.id || generateId(),
-          role: msg.role || "bot",
-          type: msg.type || "text",
-          content: msg.content || "Test content",
-          structured: msg.structured || undefined,
-        }));
+        const testMessages: Message[] = data.messages.map((msg: any) => {
+          const structured = msg.structured || undefined;
+          const isProductStructured = structured?.type === "product" && Array.isArray(structured.data);
+          return {
+            id: msg.id || generateId(),
+            role: msg.role || "bot",
+            type: msg.type || "text",
+            content: msg.content || "Test content",
+            structured,
+            ...(isProductStructured
+              ? {
+                  productInfoResolved: true,
+                  productInfoCount: structured.data.length,
+                }
+              : {}),
+          };
+        });
 
         dispatch({ type: "ADD_MESSAGES", payload: testMessages });
       }

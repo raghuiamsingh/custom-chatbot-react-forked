@@ -71,6 +71,10 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
     (Array.isArray(message.suggestedQuestions) && message.suggestedQuestions.length > 0);
   const textOrSuggQDone = !isTextStreaming && message.isLoadingSuggestions === false;
   const showProductsSection = hasTextOrSuggQ && textOrSuggQDone;
+  const hasProductStructured =
+    message.structured?.type === "product" && message.structured.data.length > 0;
+  const showProductCountSkeleton =
+    hasProductStructured && message.productInfoResolved !== true;
 
   return (
     <div>
@@ -109,9 +113,17 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
                   message.structured.data.length > 0 && (
                     <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <h3 className="text-md text-gray-900 dark:text-gray-100">
-                          I found {message.structured.data.length} {message.structured.data.length === 1 ? "product" : "products"} —
-                        </h3>
+                        {showProductCountSkeleton ? (
+                          <div className="h-6 w-52 max-w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse shrink-0" />
+                        ) : (
+                          <h3 className="text-md text-gray-900 dark:text-gray-100">
+                            I found {message.productInfoCount ?? message.structured.data.length}{" "}
+                            {(message.productInfoCount ?? message.structured.data.length) === 1
+                              ? "product"
+                              : "products"}{" "}
+                            —
+                          </h3>
+                        )}
 
                         <motion.button
                           onClick={() => onViewRecommendations && onViewRecommendations(message.id)}

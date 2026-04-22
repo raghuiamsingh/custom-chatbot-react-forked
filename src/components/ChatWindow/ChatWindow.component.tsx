@@ -147,7 +147,9 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
     // If text is not streaming but product or suggestion loading is still happening for the last bot text message
     if (
       hasBotTextContent &&
-      (lastBotTextMessage?.isLoadingProducts || lastBotTextMessage?.isLoadingSuggestions)
+      (lastBotTextMessage?.isLoadingProducts ||
+        lastBotTextMessage?.isLoadingSuggestions ||
+        lastBotTextMessage?.isLoadingProductInfo)
     ) {
       return true;
     }
