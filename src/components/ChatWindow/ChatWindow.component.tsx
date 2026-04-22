@@ -13,6 +13,8 @@ interface ChatWindowProps {
   isLoading?: boolean;
   requestStartTime?: number | null;
   onScrollChange?: (isNearBottom: boolean) => void;
+  isLoadingProductInfo?: boolean;
+  productInfoMessageId?: string | null;
 }
 
 export interface ChatWindowRef {
@@ -32,6 +34,8 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
   isLoading = false,
   requestStartTime = null,
   onScrollChange,
+  isLoadingProductInfo = false,
+  productInfoMessageId = null,
 }, ref) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -220,6 +224,8 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
                     isLoading={isLoading}
                     isTextStreaming={isTextStreaming}
                     requestStartTime={requestStartTime}
+                    isLoadingProductInfo={isLoadingProductInfo}
+                    productInfoMessageId={productInfoMessageId}
                   />
                 </div>
               ))}
