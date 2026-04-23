@@ -23,6 +23,7 @@ export interface ChatbotProps {
   baseFontSize?: number;
   sidebarZIndex?: number;
   maxHeight?: number;
+  enableCache?: boolean;
   initData?: InitData;
 }
 
@@ -31,6 +32,7 @@ export const Chatbot: FC<ChatbotProps> = ({
   baseFontSize = 16,
   sidebarZIndex = 50,
   maxHeight,
+  enableCache = false,
   initData
 }) => {
 
@@ -49,7 +51,7 @@ export const Chatbot: FC<ChatbotProps> = ({
   }
 
   return (
-    <ChatProvider initData={initData}>
+    <ChatProvider initData={initData} enableCache={enableCache}>
       <ChatbotContent
         isThemeRequired={isThemeRequired}
         baseFontSize={baseFontSize}

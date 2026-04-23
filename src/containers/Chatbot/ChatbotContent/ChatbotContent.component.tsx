@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+=======
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+>>>>>>> Stashed changes
 import { ChatWindow, InputBar, Sidebar, StructuredContentTester, SuggestedQuestionsAction, ThemeToggle, type ChatWindowRef } from "@components";
 import { useChat } from "@contexts";
 
@@ -16,9 +20,11 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   maxHeight
 }) => {
   const chatWindowRef = useRef<ChatWindowRef>(null);
+  const hydrateUiSettledRef = useRef(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(550);
   const [isResizing, setIsResizing] = useState(false);
+  const [nearTopTriggered, setNearTopTriggered] = useState(false);
   const sidebarMinWidth = 550; // Default width when sidebar opens
   const sidebarMaxWidth = 1200; // Maximum width for sidebar
   const conversationalPaneMinWidth = 470; // Minimum width for conversational pane
@@ -47,8 +53,12 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
     getSuggestedQuestions,
     getSuggestionsContext,
     dispatch,
+    enableCache,
+    cachePagination,
+    loadOlderMessages,
   } = useChat();
 
+<<<<<<< Updated upstream
   const sidebarProductInfoLoading = useMemo(() => {
     const mid = state.sidebarState.messageId;
     if (!state.sidebarState.isOpen || !mid) return false;
@@ -64,15 +74,83 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   useEffect(() => {
     if (!state.sidebarState.isOpen && sidebarWidth !== 550) {
       setSidebarWidth(550);
+=======
+  const handleNearTop = useCallback(async () => {
+    if (
+      !enableCache ||
+      !cachePagination.hasOlderMessages ||
+      cachePagination.isLoadingOlder
+    ) {
+      return;
+>>>>>>> Stashed changes
     }
-  }, [state.sidebarState.isOpen, sidebarWidth]);
+    const prior = chatWindowRef.current?.capturePrependScrollAnchor?.() ?? null;
+    await loadOlderMessages();
+    if (prior != null) {
+      requestAnimationFrame(() => {
+        chatWindowRef.current?.adjustScrollAfterPrepend?.(prior);
+      });
+    }
+  }, [
+    enableCache,
+    cachePagination.hasOlderMessages,
+    cachePagination.isLoadingOlder,
+    loadOlderMessages,
+  ]);
+
+  // Anchor to bottom synchronously before paint so the ChatWindow scroll listener
+  // does not see scrollTop=0 and treat it as "user hit top" (child useEffects run after this).
+  useLayoutEffect(() => {
+    if (!enableCache || !state.isHydratingFromCache || state.messages.length === 0) return;
+    chatWindowRef.current?.scrollToBottomInstant?.();
+  }, [enableCache, state.isHydratingFromCache, state.messages.length]);
+
+  useEffect(() => {
+    if (!enableCache) {
+      hydrateUiSettledRef.current = false;
+      return;
+    }
+
+    if (state.isHydratingFromCache && state.messages.length > 0 && !hydrateUiSettledRef.current) {
+      hydrateUiSettledRef.current = true;
+      const nearBottom = chatWindowRef.current?.isNearBottom?.() ?? true;
+      setShowScrollButton(!nearBottom);
+      requestAnimationFrame(() => {
+        dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: false });
+      });
+    }
+
+    if (!state.isHydratingFromCache) {
+      hydrateUiSettledRef.current = false;
+    }
+  }, [dispatch, enableCache, state.isHydratingFromCache, state.messages.length]);
+
+  // Reset near-top trigger when loading older messages completes
+  useEffect(() => {
+    if (!cachePagination.isLoadingOlder) {
+      setNearTopTriggered(false);
+    }
+  }, [cachePagination.isLoadingOlder]);
 
   const handleScrollToBottom = () => {
     chatWindowRef.current?.scrollToBottom();
   };
 
-  const handleScrollChange = (isNearBottom: boolean) => {
-    setShowScrollButton(!isNearBottom && state.messages.length > 0);
+  const handleScrollChange = (scrollInfo: { isNearBottom: boolean; isNearTop: boolean; scrollTop: number }) => {
+    setShowScrollButton(!scrollInfo.isNearBottom && state.messages.length > 0);
+
+    if (state.isHydratingFromCache) return;
+
+    // Handle near-top pagination
+    if (enableCache && cachePagination.hasOlderMessages && !cachePagination.isLoadingOlder) {
+      if (scrollInfo.scrollTop > 220) { // NEAR_TOP_RESET_SCROLL_PX
+        setNearTopTriggered(false);
+      }
+      if (scrollInfo.isNearTop && !nearTopTriggered) {
+        setNearTopTriggered(true);
+        handleNearTop();
+      }
+    }
   };
 
   // Update scroll button visibility when messages change

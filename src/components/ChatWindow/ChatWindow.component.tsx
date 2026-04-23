@@ -12,16 +12,20 @@ interface ChatWindowProps {
   onRemoveSuggestions?: (messageId: string) => void;
   isLoading?: boolean;
   requestStartTime?: number | null;
-  onScrollChange?: (isNearBottom: boolean) => void;
+  onScrollChange?: (scrollInfo: { isNearBottom: boolean; isNearTop: boolean; scrollTop: number }) => void;
 }
 
 export interface ChatWindowRef {
   scrollToBottom: () => void;
+  scrollToBottomInstant: () => void;
   isNearBottom: () => boolean;
+  capturePrependScrollAnchor: () => number | null;
+  adjustScrollAfterPrepend: (priorScrollHeight: number) => void;
 }
 
 // Constants - defined outside component to avoid recreation on each render
 const TEXT_STREAMING_DEBOUNCE_MS = 300;
+const NEAR_TOP_THRESHOLD_PX = 100;
 
 export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
   messages,
@@ -49,6 +53,13 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
     }
   };
 
+  const scrollToBottomInstant = () => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+    }
+  };
+
   const isNearBottom = () => {
     if (!scrollContainerRef.current) return true;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
@@ -56,15 +67,44 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
     return scrollHeight - scrollTop - clientHeight < threshold;
   };
 
+  const capturePrependScrollAnchor = () => {
+    const el = scrollContainerRef.current;
+    return el ? el.scrollHeight : null;
+  };
+
+  const adjustScrollAfterPrepend = (priorScrollHeight: number) => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const delta = el.scrollHeight - priorScrollHeight;
+    if (delta > 0) {
+      el.scrollTop += delta;
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     scrollToBottom,
+    scrollToBottomInstant,
     isNearBottom,
+    capturePrependScrollAnchor,
+    adjustScrollAfterPrepend,
   }));
 
   useEffect(() => {
     const handleScroll = () => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const { scrollTop } = container;
+      const isNearBottom = scrollContainerRef.current ? (() => {
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current!;
+        const threshold = 100;
+        return scrollHeight - scrollTop - clientHeight < threshold;
+      })() : true;
+
+      const isNearTop = scrollTop < NEAR_TOP_THRESHOLD_PX;
+
       if (onScrollChange) {
-        onScrollChange(isNearBottom());
+        onScrollChange({ isNearBottom, isNearTop, scrollTop });
       }
     };
 
