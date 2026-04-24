@@ -111,9 +111,12 @@ export const ChatWindow = forwardRef<ChatWindowRef, ChatWindowProps>(({
     const container = scrollContainerRef.current;
     if (container) {
       container.addEventListener("scroll", handleScroll);
-      // Initial check
-      handleScroll();
-      return () => container.removeEventListener("scroll", handleScroll);
+      // Defer initial measurement so parent useLayoutEffect (e.g. cache hydrate scroll-to-bottom) runs first.
+      const raf = requestAnimationFrame(() => handleScroll());
+      return () => {
+        cancelAnimationFrame(raf);
+        container.removeEventListener("scroll", handleScroll);
+      };
     }
   }, [onScrollChange]);
 

@@ -1,6 +1,3 @@
-<<<<<<< Updated upstream
-import React, { createContext, useContext, useReducer, useEffect, useCallback, type ReactNode } from "react";
-=======
 import React, {
   createContext,
   useContext,
@@ -10,7 +7,6 @@ import React, {
   useRef,
   type ReactNode,
 } from "react";
->>>>>>> Stashed changes
 import type { Message, SidebarState, ChatResponse, Product } from "@types";
 import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
@@ -184,12 +180,15 @@ interface ChatProviderProps {
   children: ReactNode;
   initData: InitData;
   enableCache?: boolean;
+  /** With `enableCache`, skips (and removes) IndexedDB rows older than 3h only while reading the cache. */
+  enableCacheAutoExpiry?: boolean;
 }
 
 export function ChatProvider({
   children,
   initData,
   enableCache = false,
+  enableCacheAutoExpiry = false,
 }: ChatProviderProps) {
   const [state, dispatch] = useReducer(chatReducer, {
     ...initialState,
@@ -200,6 +199,7 @@ export function ChatProvider({
 
   const { pagination, loadOlderMessages, clearCache } = useMessageCache({
     enableCache,
+    enableCacheAutoExpiry,
     initData,
     messages: state.messages,
     onMessagesLoaded: useCallback((messages) => {

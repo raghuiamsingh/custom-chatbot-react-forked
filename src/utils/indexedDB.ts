@@ -236,6 +236,28 @@ export class IndexedDBService<T extends { [key: string]: any }> {
       request.onerror = () => reject(request.error);
     });
   }
+
+  /** Walks the whole object store and deletes rows for which `predicate` returns true. */
+  async deleteWhere(predicate: (item: T) => boolean): Promise<void> {
+    const store = await this.getStore(this.config.stores[0].name, 'readwrite');
+    return new Promise((resolve, reject) => {
+      const request = store.openCursor();
+
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (cursor) {
+          if (predicate(cursor.value)) {
+            cursor.delete();
+          }
+          cursor.continue();
+        } else {
+          resolve();
+        }
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 // Factory function to create typed service instances

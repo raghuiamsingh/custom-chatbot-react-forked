@@ -24,6 +24,7 @@ export interface ChatbotProps {
   sidebarZIndex?: number;
   maxHeight?: number;
   enableCache?: boolean;
+  enableCacheAutoExpiry?: boolean;
   initData?: InitData;
 }
 
@@ -33,6 +34,7 @@ export const Chatbot: FC<ChatbotProps> = ({
   sidebarZIndex = 50,
   maxHeight,
   enableCache = false,
+  enableCacheAutoExpiry = false,
   initData
 }) => {
 
@@ -51,7 +53,11 @@ export const Chatbot: FC<ChatbotProps> = ({
   }
 
   return (
-    <ChatProvider initData={initData} enableCache={enableCache}>
+    <ChatProvider
+      initData={initData}
+      enableCache={enableCache}
+      enableCacheAutoExpiry={enableCacheAutoExpiry}
+    >
       <ChatbotContent
         isThemeRequired={isThemeRequired}
         baseFontSize={baseFontSize}

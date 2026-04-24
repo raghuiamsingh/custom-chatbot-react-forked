@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
-=======
-import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
->>>>>>> Stashed changes
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ChatWindow, InputBar, Sidebar, StructuredContentTester, SuggestedQuestionsAction, ThemeToggle, type ChatWindowRef } from "@components";
 import { useChat } from "@contexts";
 
@@ -20,6 +16,9 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   maxHeight
 }) => {
   const chatWindowRef = useRef<ChatWindowRef>(null);
+  const rootContainerRef = useRef<HTMLDivElement>(null);
+  const chatHostVisibleRef = useRef<boolean | null>(null);
+  const messagesLenRef = useRef(0);
   const hydrateUiSettledRef = useRef(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(550);
@@ -58,7 +57,8 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
     loadOlderMessages,
   } = useChat();
 
-<<<<<<< Updated upstream
+  messagesLenRef.current = state.messages.length;
+
   const sidebarProductInfoLoading = useMemo(() => {
     const mid = state.sidebarState.messageId;
     if (!state.sidebarState.isOpen || !mid) return false;
@@ -74,7 +74,9 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   useEffect(() => {
     if (!state.sidebarState.isOpen && sidebarWidth !== 550) {
       setSidebarWidth(550);
-=======
+    }
+  }, [state.sidebarState.isOpen, sidebarWidth]);
+
   const handleNearTop = useCallback(async () => {
     if (
       !enableCache ||
@@ -82,7 +84,6 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
       cachePagination.isLoadingOlder
     ) {
       return;
->>>>>>> Stashed changes
     }
     const prior = chatWindowRef.current?.capturePrependScrollAnchor?.() ?? null;
     await loadOlderMessages();
@@ -104,6 +105,32 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
     if (!enableCache || !state.isHydratingFromCache || state.messages.length === 0) return;
     chatWindowRef.current?.scrollToBottomInstant?.();
   }, [enableCache, state.isHydratingFromCache, state.messages.length]);
+
+  // Drawer / host panel often remounts layout with scrollTop=0 while messages are already loaded.
+  // Snap to bottom when the chat root becomes visible again so near-top pagination does not fire.
+  useLayoutEffect(() => {
+    if (!enableCache) return;
+    const root = rootContainerRef.current;
+    if (!root) return;
+
+    chatHostVisibleRef.current = null;
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        const now = entry.isIntersecting && entry.intersectionRatio > 0.001;
+        const prev = chatHostVisibleRef.current;
+        chatHostVisibleRef.current = now;
+        if (prev !== null && prev === false && now === true && messagesLenRef.current > 0) {
+          chatWindowRef.current?.scrollToBottomInstant?.();
+          setNearTopTriggered(false);
+        }
+      },
+      { threshold: [0, 0.001, 0.05, 0.25, 0.5, 1] }
+    );
+    io.observe(root);
+    return () => io.disconnect();
+  }, [enableCache]);
 
   useEffect(() => {
     if (!enableCache) {
@@ -218,6 +245,7 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
 
   return (
     <div
+      ref={rootContainerRef}
       className="chatbot-container flex flex-col h-screen bg-[#FDFDFC] dark:bg-[#0D1117] font-sans transition-colors duration-300 ease-in-out"
       style={{
         '--chatbot-font-base': `${baseFontSize}px`,
