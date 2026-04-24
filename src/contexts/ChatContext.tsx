@@ -180,7 +180,6 @@ interface ChatProviderProps {
   children: ReactNode;
   initData: InitData;
   enableCache?: boolean;
-  /** With `enableCache`, skips (and removes) IndexedDB rows older than 3h only while reading the cache. */
   enableCacheAutoExpiry?: boolean;
 }
 
