@@ -16,10 +16,6 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   maxHeight
 }) => {
   const chatWindowRef = useRef<ChatWindowRef>(null);
-  const rootContainerRef = useRef<HTMLDivElement>(null);
-  const chatHostVisibleRef = useRef<boolean | null>(null);
-  const messagesLenRef = useRef(0);
-  const hydrateUiSettledRef = useRef(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(550);
   const [isResizing, setIsResizing] = useState(false);
@@ -56,8 +52,6 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
     cachePagination,
     loadOlderMessages,
   } = useChat();
-
-  messagesLenRef.current = state.messages.length;
 
   const sidebarProductInfoLoading = useMemo(() => {
     const mid = state.sidebarState.messageId;
@@ -99,57 +93,11 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
     loadOlderMessages,
   ]);
 
-  // Anchor to bottom synchronously before paint so the ChatWindow scroll listener
-  // does not see scrollTop=0 and treat it as "user hit top" (child useEffects run after this).
+  // After cached messages paint: scroll to bottom, then re-enable near-top load-older detection.
   useLayoutEffect(() => {
     if (!enableCache || !state.isHydratingFromCache || state.messages.length === 0) return;
     chatWindowRef.current?.scrollToBottomInstant?.();
-  }, [enableCache, state.isHydratingFromCache, state.messages.length]);
-
-  // Drawer / host panel often remounts layout with scrollTop=0 while messages are already loaded.
-  // Snap to bottom when the chat root becomes visible again so near-top pagination does not fire.
-  useLayoutEffect(() => {
-    if (!enableCache) return;
-    const root = rootContainerRef.current;
-    if (!root) return;
-
-    chatHostVisibleRef.current = null;
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry) return;
-        const now = entry.isIntersecting && entry.intersectionRatio > 0.001;
-        const prev = chatHostVisibleRef.current;
-        chatHostVisibleRef.current = now;
-        if (prev !== null && prev === false && now === true && messagesLenRef.current > 0) {
-          chatWindowRef.current?.scrollToBottomInstant?.();
-          setNearTopTriggered(false);
-        }
-      },
-      { threshold: [0, 0.001, 0.05, 0.25, 0.5, 1] }
-    );
-    io.observe(root);
-    return () => io.disconnect();
-  }, [enableCache]);
-
-  useEffect(() => {
-    if (!enableCache) {
-      hydrateUiSettledRef.current = false;
-      return;
-    }
-
-    if (state.isHydratingFromCache && state.messages.length > 0 && !hydrateUiSettledRef.current) {
-      hydrateUiSettledRef.current = true;
-      const nearBottom = chatWindowRef.current?.isNearBottom?.() ?? true;
-      setShowScrollButton(!nearBottom);
-      requestAnimationFrame(() => {
-        dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: false });
-      });
-    }
-
-    if (!state.isHydratingFromCache) {
-      hydrateUiSettledRef.current = false;
-    }
+    dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: false });
   }, [dispatch, enableCache, state.isHydratingFromCache, state.messages.length]);
 
   // Reset near-top trigger when loading older messages completes
@@ -166,7 +114,9 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
   const handleScrollChange = (scrollInfo: { isNearBottom: boolean; isNearTop: boolean; scrollTop: number }) => {
     setShowScrollButton(!scrollInfo.isNearBottom && state.messages.length > 0);
 
-    if (state.isHydratingFromCache) return;
+    if (state.isHydratingFromCache) {
+      return;
+    }
 
     // Handle near-top pagination
     if (enableCache && cachePagination.hasOlderMessages && !cachePagination.isLoadingOlder) {
@@ -245,7 +195,6 @@ export const ChatbotContent: React.FC<ChatbotContentProps> = ({
 
   return (
     <div
-      ref={rootContainerRef}
       className="chatbot-container flex flex-col h-screen bg-[#FDFDFC] dark:bg-[#0D1117] font-sans transition-colors duration-300 ease-in-out"
       style={{
         '--chatbot-font-base': `${baseFontSize}px`,

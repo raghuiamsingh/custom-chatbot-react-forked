@@ -209,17 +209,19 @@ export function ChatProvider({
     onPrependMessages: useCallback((messages) => {
       dispatch({ type: "PREPEND_MESSAGES", payload: messages });
     }, []),
+    onInitialCacheReadStarted: useCallback(() => {
+      dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: true });
+    }, []),
+    onInitialCacheReadFinished: useCallback(() => {
+      dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: false });
+    }, []),
   });
 
-  // Track cache hydration state
+  // When cache is turned off, ensure we are not stuck in a hydrating UI state.
   useEffect(() => {
     if (!enableCache) {
       dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: false });
-      return;
     }
-
-    // Start with hydrating state true when cache is enabled
-    dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: true });
   }, [enableCache]);
 
   // Helper function to generate unique IDs

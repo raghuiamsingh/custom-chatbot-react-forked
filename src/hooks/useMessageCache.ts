@@ -13,6 +13,8 @@ interface UseMessageCacheProps {
   messages: Message[];
   onMessagesLoaded: (messages: Message[]) => void;
   onPrependMessages: (messages: Message[]) => void;
+  onInitialCacheReadStarted?: () => void;
+  onInitialCacheReadFinished?: () => void;
 }
 
 // Constants
@@ -71,6 +73,8 @@ export function useMessageCache({
   messages,
   onMessagesLoaded,
   onPrependMessages,
+  onInitialCacheReadStarted,
+  onInitialCacheReadFinished,
 }: UseMessageCacheProps) {
   const tabSessionId = useMemo(() => {
     if (typeof sessionStorage === "undefined") {
@@ -104,7 +108,14 @@ export function useMessageCache({
 
   // Hydrate messages from cache on thread change
   useEffect(() => {
-    if (!enableCache || !isIndexedDBAvailable()) return;
+    if (!enableCache) return;
+
+    if (!isIndexedDBAvailable()) {
+      onInitialCacheReadFinished?.();
+      return;
+    }
+
+    onInitialCacheReadStarted?.();
 
     const runId = ++hydrateRunIdRef.current;
     oldestSeqLoadedRef.current = null;
@@ -175,20 +186,25 @@ export function useMessageCache({
 
         if (cancelled || runId !== hydrateRunIdRef.current) return;
 
-        if (messages.length === 0) return;
+        if (messages.length === 0) {
+          onInitialCacheReadFinished?.();
+          return;
+        }
 
         // Oldest seq in the *loaded window* (not global max), so "load older" starts below this.
         oldestSeqLoadedRef.current = Math.min(...recentItems.map((item) => item.seq));
         setPagination({ hasOlderMessages: hasMore, isLoadingOlder: false });
 
         onMessagesLoaded(messages);
-      } catch (e) {
-        // Hydration failed
+      } catch {
+        if (!cancelled && runId === hydrateRunIdRef.current) {
+          onInitialCacheReadFinished?.();
+        }
       }
     })();
 
     return () => { cancelled = true; };
-  }, [threadKey, enableCache, enableCacheAutoExpiry, onMessagesLoaded]);
+  }, [threadKey, enableCache, enableCacheAutoExpiry]);
 
   // Debounced persistence
   useEffect(() => {
@@ -232,7 +248,7 @@ export function useMessageCache({
             await dbService.create(cachedMessage);
           }
         }
-      } catch (e) {
+      } catch {
         // Cache persist failed
       }
     }, 160);
@@ -252,7 +268,7 @@ export function useMessageCache({
           index: "bySession",
           range: IDBKeyRange.only(tabSessionId)
         });
-      } catch (e) {
+      } catch {
         // Cache session delete failed
       } finally {
         if (typeof sessionStorage !== "undefined") {
@@ -361,7 +377,7 @@ export function useMessageCache({
       setPagination({ hasOlderMessages: hasMore, isLoadingOlder: false });
 
       onPrependMessages(olderMessages);
-    } catch (e) {
+    } catch {
       setPagination((prev) => ({ ...prev, isLoadingOlder: false }));
     }
   }, [enableCache, enableCacheAutoExpiry, threadKey, pagination, onPrependMessages]);
@@ -381,7 +397,7 @@ export function useMessageCache({
             [threadKey, Number.MAX_SAFE_INTEGER]
         )
       });
-    } catch (e) {
+    } catch {
       // Cache clear failed
     }
     oldestSeqLoadedRef.current = null;
