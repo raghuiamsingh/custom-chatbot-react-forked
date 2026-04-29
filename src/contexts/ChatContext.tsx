@@ -1,10 +1,19 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback, type ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import type { Message, SidebarState, ChatResponse, Product } from "@types";
 import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
 import { buildApiUrl } from "../utils/apiUrl";
 import { INTRODUCTION_MESSAGE, parseStreamedText } from "@utils/constants";
 import { normalizeProducts } from "../utils/productNormalizer";
+import { useMessageCache } from "@hooks";
 
 // State interfaces
 interface ChatState {
@@ -17,6 +26,7 @@ interface ChatState {
   debugMode: boolean;
   abortController: AbortController | null;
   requestStartTime: number | null;
+  isHydratingFromCache: boolean;
 }
 
 // Action types
@@ -35,7 +45,9 @@ type ChatAction =
   | { type: "SET_ABORT_CONTROLLER"; payload: AbortController | null }
   | { type: "SET_REQUEST_START_TIME"; payload: number | null }
   | { type: "REMOVE_SUGGESTIONS"; payload: string }
-  | { type: "RESET_CHAT" };
+  | { type: "RESET_CHAT" }
+  | { type: "PREPEND_MESSAGES"; payload: Message[] }
+  | { type: "SET_HYDRATING_FROM_CACHE"; payload: boolean };
 
 // Initial state
 const initialState: ChatState = {
@@ -48,6 +60,7 @@ const initialState: ChatState = {
   debugMode: true,
   abortController: null,
   requestStartTime: null,
+  isHydratingFromCache: false,
 };
 
 // Reducer
@@ -61,6 +74,12 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case "ADD_MESSAGES":
       return { ...state, messages: [...state.messages, ...action.payload] };
+
+    case "PREPEND_MESSAGES":
+      return {
+        ...state,
+        messages: [...action.payload, ...state.messages],
+      };
 
     case "UPDATE_MESSAGE":
       return {
@@ -101,6 +120,9 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case "SET_REQUEST_START_TIME":
       return { ...state, requestStartTime: action.payload };
+
+    case "SET_HYDRATING_FROM_CACHE":
+      return { ...state, isHydratingFromCache: action.payload };
 
     case "REMOVE_SUGGESTIONS":
       return {
@@ -145,6 +167,10 @@ interface ChatContextType {
   handleRemoveSuggestions: (messageId: string) => void;
   getSuggestedQuestions: () => string[];
   getSuggestionsContext: () => string;
+  enableCache: boolean;
+  cachePagination: { hasOlderMessages: boolean; isLoadingOlder: boolean };
+  loadOlderMessages: () => Promise<void>;
+  isHydratingFromCache: boolean;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -153,11 +179,49 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 interface ChatProviderProps {
   children: ReactNode;
   initData: InitData;
+  enableCache?: boolean;
+  enableCacheAutoExpiry?: boolean;
 }
 
-export function ChatProvider({ children, initData }: ChatProviderProps) {
-  const [state, dispatch] = useReducer(chatReducer, initialState);
-  const prevSidebarOpenRef = React.useRef(false);
+export function ChatProvider({
+  children,
+  initData,
+  enableCache = false,
+  enableCacheAutoExpiry = false,
+}: ChatProviderProps) {
+  const [state, dispatch] = useReducer(chatReducer, {
+    ...initialState,
+    isHydratingFromCache: enableCache,
+  });
+  const prevSidebarOpenRef = useRef(false);
+  const chatSendGenerationRef = useRef(0);
+
+  const { pagination, loadOlderMessages, clearCache } = useMessageCache({
+    enableCache,
+    enableCacheAutoExpiry,
+    initData,
+    messages: state.messages,
+    onMessagesLoaded: useCallback((messages) => {
+      dispatch({ type: "SET_MESSAGES", payload: messages });
+      dispatch({ type: "SET_SHOW_INITIAL_SUGGESTIONS", payload: false });
+    }, []),
+    onPrependMessages: useCallback((messages) => {
+      dispatch({ type: "PREPEND_MESSAGES", payload: messages });
+    }, []),
+    onInitialCacheReadStarted: useCallback(() => {
+      dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: true });
+    }, []),
+    onInitialCacheReadFinished: useCallback(() => {
+      dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: false });
+    }, []),
+  });
+
+  // When cache is turned off, ensure we are not stuck in a hydrating UI state.
+  useEffect(() => {
+    if (!enableCache) {
+      dispatch({ type: "SET_HYDRATING_FROM_CACHE", payload: false });
+    }
+  }, [enableCache]);
 
   // Helper function to generate unique IDs
   const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -267,9 +331,15 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
 
   // Send message function
   const sendMessage = async (content: string) => {
+    const sendGen = chatSendGenerationRef.current;
+    const d = (action: ChatAction) => {
+      if (sendGen !== chatSendGenerationRef.current) return;
+      dispatch(action);
+    };
+
     // Close sidebar when a new message is sent
     if (state.sidebarState.isOpen) {
-      dispatch({
+      d({
         type: "SET_SIDEBAR_STATE",
         payload: { isOpen: false, messageId: null },
       });
@@ -278,7 +348,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
 
     // Hide initial suggestions on first interaction and add intro message to history
     if (state.showInitialSuggestions) {
-      dispatch({ type: "SET_SHOW_INITIAL_SUGGESTIONS", payload: false });
+      d({ type: "SET_SHOW_INITIAL_SUGGESTIONS", payload: false });
 
       // Add the introduction message as a bot message to scroll it into history
       const introMessage: Message = {
@@ -290,7 +360,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         },
       };
 
-      dispatch({ type: "SET_MESSAGES", payload: [introMessage] });
+      d({ type: "SET_MESSAGES", payload: [introMessage] });
     }
 
     // Add user message immediately
@@ -309,13 +379,13 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       content: {},
     };
 
-    dispatch({ type: "ADD_MESSAGES", payload: [userMessage, typingMessage] });
-    dispatch({ type: "SET_LOADING", payload: true });
-    dispatch({ type: "SET_REQUEST_START_TIME", payload: Date.now() });
+    d({ type: "ADD_MESSAGES", payload: [userMessage, typingMessage] });
+    d({ type: "SET_LOADING", payload: true });
+    d({ type: "SET_REQUEST_START_TIME", payload: Date.now() });
 
     // Create new AbortController for this request
     const controller = new AbortController();
-    dispatch({ type: "SET_ABORT_CONTROLLER", payload: controller });
+    d({ type: "SET_ABORT_CONTROLLER", payload: controller });
 
     try {
       // Record request start time
@@ -364,8 +434,8 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
         isLoadingSuggestions: true,
       };
 
-      dispatch({ type: "ADD_MESSAGE", payload: botMessage });
-      dispatch({ type: "REMOVE_TYPING_INDICATOR" });
+      d({ type: "ADD_MESSAGE", payload: botMessage });
+      d({ type: "REMOVE_TYPING_INDICATOR" });
 
       const decoder = new TextDecoder();
       let currentTextValue = "";
@@ -419,13 +489,13 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                   const { text: chunkText, suggestedQuestions: chunkSuggQ } = data.response;
                   if (typeof chunkText === "string" && chunkText !== currentTextValue) {
                     currentTextValue = chunkText;
-                    dispatch({
+                    d({
                       type: "UPDATE_MESSAGE",
                       payload: { id: botMessageId, content: { text: chunkText } },
                     });
                   }
                   if (Array.isArray(chunkSuggQ) && chunkSuggQ.length > 0) {
-                    dispatch({
+                    d({
                       type: "UPDATE_MESSAGE",
                       payload: {
                         id: botMessageId,
@@ -444,14 +514,14 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                       const extracted = extractTextFromPartialJson(accumulatedRawText);
                       if (extracted !== currentTextValue) {
                         currentTextValue = extracted;
-                        dispatch({
+                        d({
                           type: "UPDATE_MESSAGE",
                           payload: { id: botMessageId, content: { text: extracted } },
                         });
                       }
                     } else {
                       currentTextValue = accumulatedRawText;
-                      dispatch({
+                      d({
                         type: "UPDATE_MESSAGE",
                         payload: { id: botMessageId, content: { text: accumulatedRawText } },
                       });
@@ -460,12 +530,12 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                 } else if (data.type === "done" && data.response) {
                   const { text, suggestedQuestions = [] } = data.response;
                   if (text && typeof text === "string") {
-                    dispatch({
+                    d({
                       type: "UPDATE_MESSAGE",
                       payload: { id: botMessageId, content: { text } },
                     });
                   }
-                  dispatch({
+                  d({
                     type: "UPDATE_MESSAGE",
                     payload: {
                       id: botMessageId,
@@ -491,12 +561,12 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
               if (data.type === "done" && data.response) {
                 const { text, suggestedQuestions = [] } = data.response;
                 if (text) {
-                  dispatch({
+                  d({
                     type: "UPDATE_MESSAGE",
                     payload: { id: botMessageId, content: { text } },
                   });
                 }
-                dispatch({
+                d({
                   type: "UPDATE_MESSAGE",
                   payload: {
                     id: botMessageId,
@@ -530,7 +600,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
                 if (data.type === "done" && data.response) {
                   const products = Array.isArray(data.response.products) ? data.response.products : [];
                   if (products.length > 0) hadProductsFromStream = true;
-                  dispatch({
+                  d({
                     type: "UPDATE_MESSAGE",
                     payload: {
                       id: botMessageId,
@@ -561,13 +631,13 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
               }
             }
           }
-          dispatch({
+          d({
             type: "UPDATE_MESSAGE",
             payload: { id: botMessageId, isLoadingProducts: false },
           });
         } catch (err) {
           console.error("Products stream error:", err);
-          dispatch({
+          d({
             type: "UPDATE_MESSAGE",
             payload: { id: botMessageId, isLoadingProducts: false },
           });
@@ -589,7 +659,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
           // Do not throw on products failure — text and suggestedQuestions must always show
         }
         if (!productsReader) {
-          dispatch({
+          d({
             type: "UPDATE_MESSAGE",
             payload: { id: botMessageId, isLoadingProducts: false },
           });
@@ -601,7 +671,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
 
       // Open products drawer only when we got products; UI shows products block only after text/suggQ are rendered (see MessageRenderer).
       if (hadProductsFromStream) {
-        dispatch({
+        d({
           type: "SET_SIDEBAR_STATE",
           payload: { isOpen: true, messageId: botMessageId },
         });
@@ -609,7 +679,7 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       }
 
       const elapsedSeconds = Math.round((Date.now() - requestStartTime) / 1000);
-      dispatch({
+      d({
         type: "UPDATE_MESSAGE",
         payload: { id: botMessageId, responseTimeSeconds: elapsedSeconds },
       });
@@ -620,17 +690,17 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
       // Check if the request was aborted
       if (error instanceof Error && error.name === "AbortError") {
         // Remove typing indicator and add cancellation message
-        dispatch({ type: "REMOVE_TYPING_INDICATOR" });
+        d({ type: "REMOVE_TYPING_INDICATOR" });
         const cancelledMessage: Message = {
           id: generateId(),
           role: "bot",
           type: "text",
           content: { text: "Generation stopped." },
         };
-        dispatch({ type: "ADD_MESSAGE", payload: cancelledMessage });
+        d({ type: "ADD_MESSAGE", payload: cancelledMessage });
       } else {
         // Remove typing indicator and add error message
-        dispatch({ type: "REMOVE_TYPING_INDICATOR" });
+        d({ type: "REMOVE_TYPING_INDICATOR" });
         const errorMessage: Message = {
           id: generateId(),
           role: "bot",
@@ -639,12 +709,12 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
             text: "Sorry, there was an error processing your message. Please try again.",
           },
         };
-        dispatch({ type: "ADD_MESSAGE", payload: errorMessage });
+        d({ type: "ADD_MESSAGE", payload: errorMessage });
       }
     } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
-      dispatch({ type: "SET_ABORT_CONTROLLER", payload: null });
-      dispatch({ type: "SET_REQUEST_START_TIME", payload: null });
+      d({ type: "SET_LOADING", payload: false });
+      d({ type: "SET_ABORT_CONTROLLER", payload: null });
+      d({ type: "SET_REQUEST_START_TIME", payload: null });
     }
   };
 
@@ -658,11 +728,14 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
     }
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
+    chatSendGenerationRef.current += 1;
+    if (state.abortController) {
+      state.abortController.abort();
+    }
+    await clearCache();
     dispatch({ type: "RESET_CHAT" });
-
-    // Dispatch custom event when sidebar is closed
-    window.dispatchEvent(new CustomEvent('chatbotRecommendationsClosed'));
+    window.dispatchEvent(new CustomEvent("chatbotRecommendationsClosed"));
   };
 
   const handleViewRecommendations = (messageId: string) => {
@@ -854,6 +927,10 @@ export function ChatProvider({ children, initData }: ChatProviderProps) {
     handleRemoveSuggestions,
     getSuggestedQuestions,
     getSuggestionsContext,
+    enableCache: enableCache,
+    cachePagination: pagination,
+    loadOlderMessages,
+    isHydratingFromCache: state.isHydratingFromCache,
   };
 
   return (
