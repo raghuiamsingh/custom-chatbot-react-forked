@@ -7,6 +7,7 @@ interface SuggestedQuestionsProps {
   questions?: string[];
   variant?: "onboarding" | "dynamic";
   disabled?: boolean;
+  disableAnimations?: boolean;
 }
 
 export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
@@ -14,6 +15,7 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
   questions,
   variant = "onboarding",
   disabled = false,
+  disableAnimations = false,
 }) => {
   // Use provided questions or generate random ones from categories
   const displayQuestions = questions || getRandomSuggestedQuestions();
@@ -103,7 +105,7 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
         <motion.div
           className="px-4 py-3 mt-3"
           variants={pillContainerVariants}
-          initial="hidden"
+          initial={disableAnimations ? "visible" : "hidden"}
           animate="visible"
           exit="exit"
         >
@@ -111,6 +113,8 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
           <motion.div
             className={`text-sm font-medium mb-3 transition-colors duration-200 ${disabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}
             variants={pillVariants}
+            initial={disableAnimations ? "visible" : "hidden"}
+            animate="visible"
           >
             Suggested Questions
           </motion.div>
@@ -123,6 +127,8 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
                 disabled={disabled}
                 className="w-full text-left p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 ease-in-out group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800"
                 variants={pillVariants}
+                initial={disableAnimations ? "visible" : "hidden"}
+                animate="visible"
                 whileHover={disabled ? {} : { scale: 1.01 }}
                 whileTap={disabled ? {} : { scale: 0.99 }}
                 aria-label={`Ask: ${question}`}
@@ -144,7 +150,7 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
       <motion.div
         className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 transition-colors duration-300 ease-in-out"
         variants={containerVariants}
-        initial="hidden"
+        initial={disableAnimations ? "visible" : "hidden"}
         animate="visible"
         exit="exit"
       >
@@ -152,6 +158,8 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
           <motion.h3
             className="text-base font-semibold text-gray-700 dark:text-gray-200 mb-4 transition-colors duration-300 ease-in-out"
             variants={buttonVariants}
+            initial={disableAnimations ? "visible" : "hidden"}
+            animate="visible"
           >
             Suggested Questions
           </motion.h3>
@@ -166,6 +174,8 @@ export const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({
                 disabled={disabled}
                 className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium text-sm sm:text-base rounded-full shadow-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-300 ease-in-out text-left disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500"
                 variants={buttonVariants}
+                initial={disableAnimations ? "visible" : "hidden"}
+                animate="visible"
                 whileHover={disabled ? {} : { scale: 1.02 }}
                 whileTap={disabled ? {} : { scale: 0.98 }}
                 aria-label={`Ask: ${question}`}

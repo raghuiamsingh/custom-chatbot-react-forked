@@ -4,6 +4,7 @@ import { MessageBubble, ButtonGroup, SuggestedQuestions, ProductCard, TypingIndi
 import { type Message, type Product } from "@types";
 import { parseMarkdownBold, parseStreamedText } from "@utils/constants";
 import { formatDuration } from "@utils/formatDuration";
+import { useChat } from "@contexts";
 
 interface MessageRendererProps {
   message: Message;
@@ -30,6 +31,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   isTextStreaming = false,
   requestStartTime = null,
 }) => {
+  const { isHydratingFromCache } = useChat();
   const isLastMessage = messageIndex === messages.length - 1;
   const showLoadingState = isLoading && message.role === "bot" && message.type === "text" && isLastMessage;
   const isUser = message.role === "user";
@@ -213,6 +215,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
               questions={message.suggestedQuestions}
               variant="dynamic"
               disabled={isLoading}
+              disableAnimations={isHydratingFromCache}
             />
           )}
       </div>
