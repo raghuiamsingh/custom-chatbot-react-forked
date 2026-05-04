@@ -12,7 +12,7 @@ import type { InitData } from "@containers/Chatbot";
 import { encryptInitData } from "../utils/encryption";
 import { buildApiUrl } from "../utils/apiUrl";
 import { INTRODUCTION_MESSAGE, parseStreamedText } from "@utils/constants";
-import { normalizeProducts } from "../utils/productNormalizer";
+import { extractProductSkus, normalizeProducts } from "../utils/productNormalizer";
 import { useMessageCache } from "@hooks";
 
 // State interfaces
@@ -141,12 +141,6 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     default:
       return state;
   }
-}
-
-function extractProductSkus(data: unknown[]): string[] {
-  return data
-    .map((item: unknown) => (typeof item === "string" ? item : (item as { sku?: string })?.sku))
-    .filter((sku): sku is string => Boolean(sku));
 }
 
 // Context
@@ -328,6 +322,24 @@ export function ChatProvider({
 
     prevSidebarOpenRef.current = isSidebarOpen;
   }, [state.sidebarState.isOpen, state.sidebarState.messageId, state.messages, fetchProductInfoForMessage]);
+
+  // Load full product payloads for SKU-only structured rows (e.g. chat restored from IndexedDB cache).
+  useEffect(() => {
+    for (const message of state.messages) {
+      if (
+        message.structured?.type === "product" &&
+        Array.isArray(message.structured.data) &&
+        message.structured.data.length > 0 &&
+        message.productInfoResolved !== true &&
+        !message.isLoadingProductInfo
+      ) {
+        const productSkus = extractProductSkus(message.structured.data);
+        if (productSkus.length > 0) {
+          void fetchProductInfoForMessage(message.id, productSkus);
+        }
+      }
+    }
+  }, [state.messages, fetchProductInfoForMessage]);
 
   // Send message function
   const sendMessage = async (content: string) => {

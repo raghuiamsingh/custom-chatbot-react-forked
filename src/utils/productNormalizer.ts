@@ -1,4 +1,4 @@
-import type { RawProductApiResponse, Product } from "@types";
+import type { Message, RawProductApiResponse, Product } from "@types";
 
 /**
  * Strips HTML tags from a string
@@ -115,4 +115,32 @@ export function normalizeProduct(rawProduct: RawProductApiResponse | Partial<Raw
  */
 export function normalizeProducts(rawProducts: (RawProductApiResponse | Partial<RawProductApiResponse>)[]): Product[] {
   return rawProducts.map(normalizeProduct);
+}
+
+export function extractProductSkus(data: unknown[]): string[] {
+  return data
+    .map((item: unknown) => (typeof item === "string" ? item : (item as { sku?: string })?.sku))
+    .filter((sku): sku is string => Boolean(sku));
+}
+
+/**
+ * For IndexedDB chat cache (persist + read): keep only product SKUs in structured.data and clear product-info
+ * completion state so /product-info runs at runtime like a fresh session.
+ */
+export function toSkuOnlyProductMessageForCache(message: Message): Message {
+  if (message.structured?.type !== "product" || !Array.isArray(message.structured.data)) {
+    return message;
+  }
+  const skus = extractProductSkus(message.structured.data);
+  const hasSkus = skus.length > 0;
+  return {
+    ...message,
+    structured: {
+      type: "product",
+      data: hasSkus ? skus.map((sku) => ({ sku })) : [],
+    },
+    isLoadingProductInfo: false,
+    productInfoResolved: hasSkus ? false : true,
+    productInfoCount: undefined,
+  };
 }

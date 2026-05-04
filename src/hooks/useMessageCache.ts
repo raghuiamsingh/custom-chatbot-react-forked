@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import type {Message} from "@types";
 import {createIndexedDBService, type IDBConfig, isIndexedDBAvailable} from "@utils";
+import {toSkuOnlyProductMessageForCache} from "../utils/productNormalizer";
 
 interface UseMessageCacheProps {
   enableCache: boolean;
@@ -182,7 +183,9 @@ export function useMessageCache({
           hasMore = lastHasMore;
         }
 
-        const messages = recentItems.map((item) => item.message);
+        const messages = recentItems
+          .map((item) => item.message)
+          .map(toSkuOnlyProductMessageForCache);
 
         if (cancelled || runId !== hydrateRunIdRef.current) return;
 
@@ -243,7 +246,7 @@ export function useMessageCache({
               messageId: message.id,
               seq: maxSeq,
               cachedAtMs: now,
-              message
+              message: toSkuOnlyProductMessageForCache(message),
             };
             await dbService.create(cachedMessage);
           }
@@ -376,7 +379,7 @@ export function useMessageCache({
 
       setPagination({ hasOlderMessages: hasMore, isLoadingOlder: false });
 
-      onPrependMessages(olderMessages);
+      onPrependMessages(olderMessages.map(toSkuOnlyProductMessageForCache));
     } catch {
       setPagination((prev) => ({ ...prev, isLoadingOlder: false }));
     }
