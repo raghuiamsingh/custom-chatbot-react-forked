@@ -76,7 +76,9 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   const hasProductStructured =
     message.structured?.type === "product" && message.structured.data.length > 0;
   const showProductCountSkeleton =
-    hasProductStructured && message.productInfoResolved !== true;
+    hasProductStructured &&
+    message.productInfoResolved !== true &&
+    !message.deferProductInfoUntilUserOpens;
 
   return (
     <div>

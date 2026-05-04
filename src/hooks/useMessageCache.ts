@@ -185,7 +185,7 @@ export function useMessageCache({
 
         const messages = recentItems
           .map((item) => item.message)
-          .map(toSkuOnlyProductMessageForCache);
+          .map((m) => toSkuOnlyProductMessageForCache(m, { fromCacheRestore: true }));
 
         if (cancelled || runId !== hydrateRunIdRef.current) return;
 
@@ -379,7 +379,9 @@ export function useMessageCache({
 
       setPagination({ hasOlderMessages: hasMore, isLoadingOlder: false });
 
-      onPrependMessages(olderMessages.map(toSkuOnlyProductMessageForCache));
+      onPrependMessages(
+        olderMessages.map((m) => toSkuOnlyProductMessageForCache(m, { fromCacheRestore: true }))
+      );
     } catch {
       setPagination((prev) => ({ ...prev, isLoadingOlder: false }));
     }

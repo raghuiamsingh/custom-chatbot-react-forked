@@ -123,16 +123,25 @@ export function extractProductSkus(data: unknown[]): string[] {
     .filter((sku): sku is string => Boolean(sku));
 }
 
+export type ToSkuOnlyProductMessageOptions = {
+  /** Toggle the auto-fetching of product info until the user opens the products sidebar */
+  fromCacheRestore?: boolean;
+};
+
 /**
- * For IndexedDB chat cache (persist + read): keep only product SKUs in structured.data and clear product-info
- * completion state so /product-info runs at runtime like a fresh session.
+ * For IndexedDB: keep only product SKUs in structured.data and reset product-info fields.
+ * Use `fromCacheRestore` on read paths so live stream behavior stays unchanged.
  */
-export function toSkuOnlyProductMessageForCache(message: Message): Message {
+export function toSkuOnlyProductMessageForCache(
+  message: Message,
+  options?: ToSkuOnlyProductMessageOptions
+): Message {
   if (message.structured?.type !== "product" || !Array.isArray(message.structured.data)) {
     return message;
   }
   const skus = extractProductSkus(message.structured.data);
   const hasSkus = skus.length > 0;
+  const fromCacheRestore = options?.fromCacheRestore === true;
   return {
     ...message,
     structured: {
@@ -142,5 +151,6 @@ export function toSkuOnlyProductMessageForCache(message: Message): Message {
     isLoadingProductInfo: false,
     productInfoResolved: hasSkus ? false : true,
     productInfoCount: undefined,
+    ...(fromCacheRestore && hasSkus ? { deferProductInfoUntilUserOpens: true as const } : {}),
   };
 }

@@ -188,6 +188,7 @@ export function ChatProvider({
     isHydratingFromCache: enableCache,
   });
   const prevSidebarOpenRef = useRef(false);
+  const prevSidebarMessageIdRef = useRef<string | null>(null);
   const chatSendGenerationRef = useRef(0);
 
   const { pagination, loadOlderMessages, clearCache } = useMessageCache({
@@ -272,6 +273,7 @@ export function ChatProvider({
               isLoadingProductInfo: false,
               productInfoResolved: true,
               productInfoCount: apiCount,
+              deferProductInfoUntilUserOpens: false,
             },
           });
         } else {
@@ -281,6 +283,7 @@ export function ChatProvider({
               id: messageId,
               isLoadingProductInfo: false,
               productInfoResolved: true,
+              deferProductInfoUntilUserOpens: false,
             },
           });
         }
@@ -292,6 +295,7 @@ export function ChatProvider({
             id: messageId,
             isLoadingProductInfo: false,
             productInfoResolved: true,
+            deferProductInfoUntilUserOpens: false,
           },
         });
       } finally {
@@ -301,13 +305,22 @@ export function ChatProvider({
     [initData],
   );
 
-  // Call product-info when sidebar opens if this message is not already enriched
+  // Call product-info when sidebar opens or when the user switches to another message while it stays open
   useEffect(() => {
     const isSidebarOpen = state.sidebarState.isOpen;
+    const messageId = state.sidebarState.messageId;
     const wasSidebarClosed = !prevSidebarOpenRef.current;
+    const prevMsgId = prevSidebarMessageIdRef.current;
+    const openedNow = isSidebarOpen && wasSidebarClosed && messageId;
+    const switchedMessageWhileOpen =
+      isSidebarOpen &&
+      !wasSidebarClosed &&
+      messageId != null &&
+      prevMsgId != null &&
+      prevMsgId !== messageId;
 
-    if (isSidebarOpen && wasSidebarClosed && state.sidebarState.messageId) {
-      const message = state.messages.find((msg) => msg.id === state.sidebarState.messageId);
+    if (isSidebarOpen && messageId && (openedNow || switchedMessageWhileOpen)) {
+      const message = state.messages.find((msg) => msg.id === messageId);
       if (
         message?.structured?.type === "product" &&
         message.structured.data?.length &&
@@ -315,31 +328,14 @@ export function ChatProvider({
       ) {
         const productSkus = extractProductSkus(message.structured.data);
         if (productSkus.length > 0) {
-          void fetchProductInfoForMessage(state.sidebarState.messageId, productSkus);
+          void fetchProductInfoForMessage(messageId, productSkus);
         }
       }
     }
 
     prevSidebarOpenRef.current = isSidebarOpen;
+    prevSidebarMessageIdRef.current = isSidebarOpen && messageId ? messageId : null;
   }, [state.sidebarState.isOpen, state.sidebarState.messageId, state.messages, fetchProductInfoForMessage]);
-
-  // Load full product payloads for SKU-only structured rows (e.g. chat restored from IndexedDB cache).
-  useEffect(() => {
-    for (const message of state.messages) {
-      if (
-        message.structured?.type === "product" &&
-        Array.isArray(message.structured.data) &&
-        message.structured.data.length > 0 &&
-        message.productInfoResolved !== true &&
-        !message.isLoadingProductInfo
-      ) {
-        const productSkus = extractProductSkus(message.structured.data);
-        if (productSkus.length > 0) {
-          void fetchProductInfoForMessage(message.id, productSkus);
-        }
-      }
-    }
-  }, [state.messages, fetchProductInfoForMessage]);
 
   // Send message function
   const sendMessage = async (content: string) => {
