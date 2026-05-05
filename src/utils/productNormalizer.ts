@@ -1,4 +1,4 @@
-import type { RawProductApiResponse, Product } from "@types";
+import type { Message, RawProductApiResponse, Product } from "@types";
 
 /**
  * Strips HTML tags from a string
@@ -115,4 +115,42 @@ export function normalizeProduct(rawProduct: RawProductApiResponse | Partial<Raw
  */
 export function normalizeProducts(rawProducts: (RawProductApiResponse | Partial<RawProductApiResponse>)[]): Product[] {
   return rawProducts.map(normalizeProduct);
+}
+
+export function extractProductSkus(data: unknown[]): string[] {
+  return data
+    .map((item: unknown) => (typeof item === "string" ? item : (item as { sku?: string })?.sku))
+    .filter((sku): sku is string => Boolean(sku));
+}
+
+export type ToSkuOnlyProductMessageOptions = {
+  /** Toggle the auto-fetching of product info until the user opens the products sidebar */
+  fromCacheRestore?: boolean;
+};
+
+/**
+ * For IndexedDB: keep only product SKUs in structured.data and reset product-info fields.
+ * Use `fromCacheRestore` on read paths so live stream behavior stays unchanged.
+ */
+export function toSkuOnlyProductMessageForCache(
+  message: Message,
+  options?: ToSkuOnlyProductMessageOptions
+): Message {
+  if (message.structured?.type !== "product" || !Array.isArray(message.structured.data)) {
+    return message;
+  }
+  const skus = extractProductSkus(message.structured.data);
+  const hasSkus = skus.length > 0;
+  const fromCacheRestore = options?.fromCacheRestore === true;
+  return {
+    ...message,
+    structured: {
+      type: "product",
+      data: hasSkus ? skus.map((sku) => ({ sku })) : [],
+    },
+    isLoadingProductInfo: false,
+    productInfoResolved: hasSkus ? false : true,
+    productInfoCount: undefined,
+    ...(fromCacheRestore && hasSkus ? { deferProductInfoUntilUserOpens: true as const } : {}),
+  };
 }

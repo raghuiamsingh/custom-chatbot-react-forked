@@ -16,6 +16,10 @@ export type Message = {
   productInfoResolved?: boolean;
   /** Count from API response `products` array when /product-info succeeds */
   productInfoCount?: number;
+  /**
+   * Toggle the auto-fetching of product info until the user opens the products sidebar
+   */
+  deferProductInfoUntilUserOpens?: boolean;
   responseTimeSeconds?: number; // Time from request start to stream completion
 };
 
